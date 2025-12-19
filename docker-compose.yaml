@@ -1,0 +1,112 @@
+version: "3.8"
+
+networks:
+  trailmq-net:
+    driver: bridge
+
+services:
+  # ------------------------------------------------------------
+  # TrailMQ Backend
+  # MQTT Broker + REST API (auditable, policy-controlled)
+  # ------------------------------------------------------------
+  backend:
+    image: rainergewalt/trailmq-backend:latest
+    container_name: trailmq-backend
+    restart: unless-stopped
+
+    # MQTT externally exposed
+    ports:
+      - "8883:8883"
+
+    # Internal REST API only (used by frontend / reverse proxy)
+    expose:
+      - "8443"
+
+    volumes:
+      # Configuration
+      - ./backend/config.yaml:/app/config.yaml:ro
+
+      # Runtime data
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+      - ./backend/audit-archive:/app/audit-archive
+
+      # Security material
+      - ./backend/certs:/app/certs:ro
+      - ./backend/secrets:/app/secrets:ro
+
+    environment:
+      GO_ENV: production
+
+    networks:
+      - trailmq-net
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8443/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ------------------------------------------------------------
+  # TrailMQ Frontend
+  # Web UI (React + nginx)
+  # ------------------------------------------------------------
+  frontend:
+    image: rainergewalt/trailmq-frontend:latest
+    container_name: trailmq-frontend
+    restart: unless-stopped
+
+    expose:
+      - "80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - trailmq-net
+
+  # ------------------------------------------------------------
+  # Reverse Proxy
+  # Single entrypoint for UI + API
+  # ------------------------------------------------------------
+  nginx:
+    image: nginx:stable-alpine
+    container_name: trailmq-reverse-proxy
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+    depends_on:
+      - backend
+      - frontend
+
+    networks:
+      - trailmq-net
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
