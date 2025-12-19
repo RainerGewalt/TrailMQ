@@ -1,4 +1,4 @@
-# 🔌 MQTrail
+# 🔌 TrailMQ
 
 [![CI](https://github.com/RainerGewalt/MQTrail/actions/workflows/ci.yml/badge.svg)](https://github.com/RainerGewalt/MQTrail/actions/workflows/ci.yml)
 [![Docker](https://github.com/RainerGewalt/MQTrail/actions/workflows/docker.yml/badge.svg)](https://github.com/RainerGewalt/MQTrail/actions/workflows/docker.yml)
