@@ -1,0 +1,220 @@
+# MQTrail Configuration Example
+# Copy this file to config.yaml and adjust settings for your environment
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TLS Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+tls:
+  server_cert: ./certs/server_cert.pem
+  server_key: ./certs/server_key.pem
+  ca_cert: ./certs/ca_cert.pem
+
+  # IP whitelist (0.0.0.0/0 = all IPs)
+  whitelist:
+    - 0.0.0.0/0  # IPv4: all
+    - ::/0       # IPv6: all
+
+  # OCSP (Online Certificate Status Protocol)
+  enable_ocsp: true
+  ocsp_fail_close: false
+
+  # Rate limiting (requests per second)
+  rate_limit: 10
+
+  # TLS cipher suites (empty = use defaults)
+  allowed_ciphers: []
+
+  # Client certificate authentication
+  client_auth_enabled: false
+
+  # Minimum TLS version
+  min_version: "1.3"
+  allow_tls12_fallback: false
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Port Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+mqtt_port: 8883
+mqtt_use_tls: true
+
+rest_port: 8443
+rest_use_tls: true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WebSocket Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+mqtt_ws_port: 9001
+mqtt_ws_use_tls: false
+mqtt_wss_port: 9443
+mqtt_ws_path: "/mqtt"
+
+# Allowed origins for WebSocket connections
+mqtt_ws_allowed_origins:
+  - "http://localhost:8888"
+  - "http://localhost:5173"
+  - "http://nginx"
+
+mqtt_ws_max_connections: 1000
+mqtt_ws_ping_interval: 60
+mqtt_ws_read_limit: 1048576   # 1MB
+mqtt_ws_write_limit: 1048576  # 1MB
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Database & Storage
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+db_path: ./data/mqtrail.db
+export_dir: ./data/export
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Security
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+jwtsecret_file: ./secrets/jwtsecret.txt
+
+# Anonymous access
+anonymous_access: false
+default_role: ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# User Management
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Roles define sets of permissions
+roles:
+  - id: 1
+    name: admin
+    description: "Full system access"
+    permissions: ["*"]
+
+  - id: 2
+    name: publisher
+    description: "Can publish to topics"
+    permissions: ["publish:*"]
+
+  - id: 3
+    name: subscriber
+    description: "Can subscribe to topics"
+    permissions: ["subscribe:*"]
+
+  - id: 4
+    name: viewer
+    description: "Read-only access"
+    permissions: ["subscribe:*"]
+
+# Users can be defined in three ways:
+# 1. Plain password (not recommended for production)
+# 2. Password from file (password_file)
+# 3. Hashed password (password_hash - use argon2)
+
+users:
+  # Admin user with plain password
+  - username: admin
+    password: change-this-password
+    roles: [admin]
+    email: admin@example.com
+    enabled: true
+    managed_by_config: true
+
+  # Publisher with password from file
+  - username: publisher
+    password_file: ./secrets/publisher.pwd
+    roles: [publisher]
+    email: publisher@example.com
+    enabled: true
+    managed_by_config: true
+
+  # Subscriber with hashed password (argon2)
+  # Generate with: echo -n "password" | argon2 somesalt -id -t 3 -m 16 -p 2
+  - username: subscriber
+    password_hash: "$argon2id$v=19$m=65536,t=3,p=2$..."
+    roles: [subscriber]
+    email: subscriber@example.com
+    enabled: true
+    managed_by_config: true
+
+# Auth sync mode: "merge" or "replace"
+# - merge: Merge config users with database users
+# - replace: Config users override database
+authsyncmode: "merge"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Queue Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+queue_size: 100
+audit_max_size: 500
+
+queue_advanced:
+  dead_letter_enabled: true
+  dead_letter_topic: dlq/error
+  message_ttl_seconds: 3600
+  batch_size: 100
+  batch_timeout: 2
+  max_batch_size_bytes: 1048576
+  enable_priority_queue: true
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Dynamic Features
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+dynamic_features:
+  cert_rotation_enabled: true
+  auto_topic_creation: true
+  inactivity_threshold: "10m"
+  topic_retention_period: "24h"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Rate Limiting
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Rate limits per endpoint (requests per second per IP)
+endpoint_rate_limits: []
+# Example:
+# - endpoint: "/api/v1/auth/login"
+#   rate: 5
+#   burst: 10
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CORS Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cors:
+  allowed_origins:
+    - http://localhost:8888
+    - http://localhost:5173
+    - http://localhost:3000
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed_headers:
+    - Content-Type
+    - Authorization
+  exposed_headers:
+    - Content-Disposition
+  allow_credentials: true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Logging
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Log level: debug, info, warn, error
+log_level: "info"
+log_path: "logs"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Audit Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Long-term audit archive:
+# - audit_archive_path: Zielordner für exportierte/archivierte Audit-Daten.
+#   Relativpfade werden relativ zur Konfigurationsdatei aufgelöst.
+# - audit_retention_days: Wie viele Tage Audit-Einträge in der DB verbleiben,
+#   bevor sie ins Archiv verschoben/gelöscht werden (Cleanup-Task in MQTrail).
+audit_archive_path: ./data/audit_archive
+audit_retention_days: 365
+
+audit_advanced:
+  max_size: 10000
+  auto_cleanup: true
+  auto_export: false
+  export_format: ""
+  export_dir: ./data/audit_backup
+ 
