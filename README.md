@@ -1,14 +1,16 @@
 # 🔌 TrailMQ
 
-[![CI](https://github.com/RainerGewalt/MQTrail/actions/workflows/ci.yml/badge.svg)](https://github.com/RainerGewalt/MQTrail/actions/workflows/ci.yml)
-[![Docker](https://github.com/RainerGewalt/MQTrail/actions/workflows/docker.yml/badge.svg)](https://github.com/RainerGewalt/MQTrail/actions/workflows/docker.yml)
+[![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
+[![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
 [![Go Version](https://img.shields.io/badge/Go-1.23-00ADD8?logo=go)](https://go.dev/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
-[![License](https://img.shields.io/badge/License-TBD-yellow)](LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary-blue)](LICENSE)
 
 **Secure, auditable MQTT broker with Web UI and REST API**
 
-MQTrail is a production-ready MQTT broker designed for **industrial and regulated environments**. It combines a secure Go-based broker, a comprehensive REST API, and a modern web interface for monitoring, policy management, and full audit trails.
+TrailMQ is a production-ready MQTT broker designed for **industrial and regulated environments**. It combines a secure Go-based broker, a comprehensive REST API, and a modern web interface for monitoring, policy management, and full audit trails.
+
+🌐 **Website**: [trailmq.io](https://trailmq.io) · 🐳 **Docker Hub**: [Backend](https://hub.docker.com/r/rainergewalt/trailmq-backend) | [Frontend](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
 
 ---
 
@@ -22,7 +24,7 @@ MQTrail is a production-ready MQTT broker designed for **industrial and regulate
 | 📨 **Messaging** | Message queuing, dead-letter handling, QoS support |
 | 📝 **Compliance** | Full audit trail, GxP-ready, regulated environments |
 | 🧩 **Policies** | Runtime validation, handshake system, topic rules |
-| 🐳 **Deployment** | Docker-first, single binary, minimal dependencies |
+| 🐳 **Deployment** | Docker-first, minimal dependencies |
 
 ---
 
@@ -68,12 +70,12 @@ MQTrail is a production-ready MQTT broker designed for **industrial and regulate
 - Docker 20.10+
 - Docker Compose v2+
 
-### Start MQTrail
+### Start TrailMQ
 
 ```bash
 # Clone repository
-git clone https://github.com/RainerGewalt/MQTrail.git
-cd MQTrail
+git clone https://github.com/RainerGewalt/TrailMQ.git
+cd TrailMQ
 
 # Start all services
 docker compose up -d
@@ -92,12 +94,9 @@ docker compose ps
 
 ### Default Credentials
 
-```
-Username: testadmin
-Password: PubAdmin!2025X
-```
-
-> ⚠️ **Security Warning**: Change these credentials immediately in production environments!
+> ⚠️ **Security Warning**: Change credentials immediately in production!
+>
+> Default login is provided in the demo configuration. See `docker-compose.yaml` for initial setup.
 
 ---
 
@@ -109,23 +108,12 @@ Official images are available on Docker Hub:
 # Pull latest images
 docker pull rainergewalt/trailmq-backend:latest
 docker pull rainergewalt/trailmq-frontend:latest
-
-# Pull specific version
-docker pull rainergewalt/trailmq-backend:2.1.0
-docker pull rainergewalt/trailmq-frontend:2.1.0
 ```
 
 | Image | Description | Size |
 |-------|-------------|------|
-| `rainergewalt/trailmq-backend` | MQTT Broker + REST API | ~30MB |
-| `rainergewalt/trailmq-frontend` | React Web UI + nginx | ~25MB |
-
-### Alternative: GitHub Container Registry
-
-```bash
-docker pull ghcr.io/rainergewalt/mqtrail-backend:latest
-docker pull ghcr.io/rainergewalt/mqtrail-frontend:latest
-```
+| [`rainergewalt/trailmq-backend`](https://hub.docker.com/r/rainergewalt/trailmq-backend) | MQTT Broker + REST API | ~30MB |
+| [`rainergewalt/trailmq-frontend`](https://hub.docker.com/r/rainergewalt/trailmq-frontend) | React Web UI + nginx | ~25MB |
 
 ---
 
@@ -169,16 +157,14 @@ policies:
 VITE_API_BASE_URL=/api
 VITE_MQTT_HOST=localhost
 VITE_MQTT_PORT=8883
-VITE_APP_TITLE=MQTrail
+VITE_APP_TITLE=TrailMQ
 ```
 
 ---
 
 ## 🧠 Policy & Handshake System
 
-MQTrail includes a powerful runtime validation system for enterprise environments:
-
-### Features
+TrailMQ includes a powerful runtime validation system for enterprise environments:
 
 - **Topic-based Rules**: QoS requirements, payload size limits, sequencing
 - **Client Handshakes**: Mandatory validation on connect
@@ -202,78 +188,7 @@ policies:
 
 ---
 
-## 🛠️ Development
-
-### Backend (Go)
-
-```bash
-cd backend
-
-# Install dependencies
-go mod download
-
-# Run with hot reload
-go run main.go
-
-# Run tests
-go test -v ./...
-
-# Build binary
-go build -o mqtrail .
-```
-
-### Frontend (React + Vite)
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Development server
-npm run dev
-
-# Production build
-npm run build
-
-# Lint
-npm run lint
-```
-
-### Full Stack (Docker Compose)
-
-```bash
-# Development mode with hot reload
-docker compose -f docker-compose.dev.yaml up
-
-# Production mode
-docker compose up -d
-
-# View logs
-docker compose logs -f backend
-docker compose logs -f frontend
-
-# Rebuild after changes
-docker compose up -d --build
-```
-
----
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [📘 DOCUMENTATION.md](DOCUMENTATION.md) | Full system overview |
-| [⚙️ docs/guides/](docs/guides/) | Setup & development guides |
-| [🔐 POLICY_HANDSHAKE.md](backend/POLICY_HANDSHAKE.md) | Policy system reference |
-| [🌐 docs/API.md](docs/API.md) | REST API reference |
-| [🚀 DEPLOYMENT.md](DEPLOYMENT.md) | CI/CD & deployment |
-
----
-
 ## 🔒 Security
-
-### Recommendations
 
 | Area | Recommendation |
 |------|----------------|
@@ -285,7 +200,18 @@ docker compose up -d --build
 
 ### Reporting Vulnerabilities
 
-Please report security issues privately via GitHub Security Advisories or email.
+Please report security issues privately via [GitHub Security Advisories](https://github.com/RainerGewalt/TrailMQ/security/advisories).
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [📘 DOCUMENTATION.md](DOCUMENTATION.md) | Full system overview |
+| [⚙️ docs/guides/](docs/guides/) | Setup & deployment guides |
+| [🔐 POLICY_HANDSHAKE.md](backend/POLICY_HANDSHAKE.md) | Policy system reference |
+| [🌐 docs/API.md](docs/API.md) | REST API reference |
 
 ---
 
@@ -300,33 +226,17 @@ Please report security issues privately via GitHub Security Advisories or email.
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-```bash
-# Fork and clone
-git clone https://github.com/YOUR_USERNAME/MQTrail.git
-
-# Create feature branch
-git checkout -b feature/amazing-feature
-
-# Make changes and test
-go test ./...
-npm run lint
-
-# Commit and push
-git commit -m "feat: add amazing feature"
-git push origin feature/amazing-feature
-
-# Open Pull Request
-```
-
----
-
 ## 📄 License
 
-TBD - License information coming soon.
+TrailMQ is distributed under a **proprietary freemium license**:
+
+- ✅ **Free**: Docker images available for personal and evaluation use
+- ✅ **Free**: Community support via GitHub Issues
+- 💼 **Commercial**: Enterprise features and support require a license
+
+The source code is **not open source**. Docker images are provided via Docker Hub.
+
+For commercial licensing inquiries, please contact via GitHub.
 
 ---
 
@@ -342,7 +252,7 @@ Industrial IIoT • Secure Messaging • Regulated Systems
 
 <div align="center">
 
-**[⬆ Back to Top](#-mqtrail)**
+**[⬆ Back to Top](#-trailmq)**
 
 Made with ❤️ for industrial IoT
 
