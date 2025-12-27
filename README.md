@@ -10,7 +10,7 @@
 
 TrailMQ is a production-ready MQTT broker designed for **industrial and regulated environments**. It combines a secure Go-based broker, a comprehensive REST API, and a modern web interface for monitoring, policy management, and full audit trails.
 
-🌐 **Website**: [trailmq.io](https://trailmq.io) · 🐳 **Docker Hub**: [Backend](https://hub.docker.com/r/rainergewalt/trailmq-backend) | [Frontend](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
+🌐 **Website**: [trailmq.io](https://trailmq.com) · 🐳 **Docker Hub**: [Backend](https://hub.docker.com/r/rainergewalt/trailmq-backend) | [Frontend](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
 
 ---
 
