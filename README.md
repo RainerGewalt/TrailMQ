@@ -6,254 +6,136 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-Proprietary-blue)](LICENSE)
 
-**Secure, auditable MQTT broker with Web UI and REST API**
+**Audit-first messaging system for regulated and industrial environments**
 
-TrailMQ is a production-ready MQTT broker designed for **industrial and regulated environments**. It combines a secure Go-based broker, a comprehensive REST API, and a modern web interface for monitoring, policy management, and full audit trails.
+TrailMQ is not a classic MQTT dashboard or monitoring tool.  
+It is designed to **prove that message-based systems behaved correctly** –  
+cryptographically verifiable, policy-driven, and audit-ready by design.
 
-🌐 **Website**: [trailmq.io](https://trailmq.com) · 🐳 **Docker Hub**: [Backend](https://hub.docker.com/r/rainergewalt/trailmq-backend) | [Frontend](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
-
----
-
-## ✨ Features
-
-| Category | Features |
-|----------|----------|
-| 🔐 **Security** | TLS encryption, JWT authentication, rate limiting, RBAC |
-| 🌐 **REST API** | Full broker and policy management, OpenAPI documented |
-| 🖥️ **Web UI** | Real-time monitoring, user management, topic browser |
-| 📨 **Messaging** | Message queuing, dead-letter handling, QoS support |
-| 📝 **Compliance** | Full audit trail, GxP-ready, regulated environments |
-| 🧩 **Policies** | Runtime validation, handshake system, topic rules |
-| 🐳 **Deployment** | Docker-first, minimal dependencies |
+🌐 **Website**: https://trailmq.com  
+🐳 **Docker Hub**: Backend | Frontend
 
 ---
 
-## 🧭 Architecture
+## What TrailMQ is – and is not
+
+**TrailMQ is:**
+- An audit-first control plane for MQTT-based systems
+- Built for regulated environments (GxP, MedTech, Industrial AI)
+- Focused on evidence, traceability, and enforced behavior
+- Designed to explain system behavior under scrutiny
+
+**TrailMQ is not:**
+- A payload inspection or message viewer
+- A real-time monitoring dashboard
+- A generic IoT platform or cloud broker
+
+---
+
+## ✨ Capabilities
+
+| Area | Description |
+|-----|-------------|
+| 🧾 **Audit & Evidence** | Cryptographic audit chain, system history, exportable proofs |
+| 🧠 **Policy Enforcement** | Runtime decisions, topic bindings, handshake validation |
+| 🔐 **Access Boundaries** | Identity, network and rate limits – enforced and traceable |
+| 📊 **Behavior Insights** | Aggregated message behavior (no payload inspection) |
+| 🖥️ **Evidence UI** | Calm, read-only focused interface for auditors and operators |
+| 🐳 **Deployment** | Docker-first, deterministic builds |
+
+---
+
+## 🧭 Architecture Overview
+
+TrailMQ separates **message transport** from **decision enforcement** and **audit evidence**.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         CLIENTS                              │
-│              PLCs • Services • Applications                  │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ MQTT / TLS (8883)
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                        BACKEND                               │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ MQTT Broker │  │  REST API   │  │   Policy Engine     │  │
-│  │   (TLS)     │  │  (HTTP/S)   │  │ • Handshakes        │  │
-│  └─────────────┘  └─────────────┘  │ • Topic Rules       │  │
-│                                    │ • Runtime Validation│  │
-│  ┌─────────────┐  ┌─────────────┐  └─────────────────────┘  │
-│  │   SQLite    │  │ Audit Trail │                           │
-│  │  Database   │  │   Logging   │                           │
-│  └─────────────┘  └─────────────┘                           │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ HTTP (internal)
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       FRONTEND                               │
-│              React + Vite + nginx                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  Dashboard  │  │   Users &   │  │   Topic Browser     │  │
-│  │  Metrics    │  │   Roles     │  │   & Policies        │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+Clients → Transport Layer → Policy Enforcement → Audit & Evidence Chain
+                       ↘ Evidence UI / REST API
 ```
+
+The system does not explain behavior by inspecting messages afterwards.  
+It enforces rules at runtime and records cryptographic proof that those rules were applied.
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - Docker 20.10+
 - Docker Compose v2+
 
 ### Start TrailMQ
 
 ```bash
-# Clone repository
 git clone https://github.com/RainerGewalt/TrailMQ.git
 cd TrailMQ
-
-# Start all services
 docker compose up -d
-
-# Check status
-docker compose ps
 ```
 
 ### Access Points
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| 🖥️ Web UI | http://localhost/trailmq/ | Management interface |
-| 🔌 MQTT | `localhost:8883` | TLS-secured broker |
-| 🌐 REST API | http://localhost/api | Programmatic access |
-
-### Default Credentials
-
-> ⚠️ **Security Warning**: Change credentials immediately in production!
->
-> Default login is provided in the demo configuration. See `docker-compose.yaml` for initial setup.
+| Service | URL |
+|-------|-----|
+| Web Interface | http://localhost/trailmq/ |
+| MQTT Broker | localhost:8883 (TLS) |
+| REST API | http://localhost/api |
 
 ---
 
-## 🐳 Docker Images
+## 🧠 Policy & Decision Model
 
-Official images are available on Docker Hub:
+TrailMQ does not log messages to explain behavior later.  
+It **enforces behavior at runtime** and records cryptographic evidence of every decision.
 
-```bash
-# Pull latest images
-docker pull rainergewalt/trailmq-backend:latest
-docker pull rainergewalt/trailmq-frontend:latest
-```
+Policies define:
+- Who may publish or subscribe
+- Which topics are allowed
+- Which constraints apply (QoS, sequencing, handshakes)
 
-| Image | Description | Size |
-|-------|-------------|------|
-| [`rainergewalt/trailmq-backend`](https://hub.docker.com/r/rainergewalt/trailmq-backend) | MQTT Broker + REST API | ~30MB |
-| [`rainergewalt/trailmq-frontend`](https://hub.docker.com/r/rainergewalt/trailmq-frontend) | React Web UI + nginx | ~25MB |
+Bindings define where policies apply.
 
----
-
-## ⚙️ Configuration
-
-### Backend (`backend/config.yaml`)
-
-```yaml
-# Core settings
-mqtt:
-  port: 8883
-  tls:
-    enabled: true
-    cert_file: ./certs/server.crt
-    key_file: ./certs/server.key
-
-rest:
-  port: 8443
-  cors_origins: ["http://localhost"]
-
-# Authentication
-auth:
-  jwt_secret_file: ./secrets/jwtsecret.txt
-  token_expiry: 24h
-
-# Audit & Compliance
-audit:
-  enabled: true
-  retention_days: 90
-  archive_path: ./audit-archive
-
-# Policy Engine
-policies:
-  enabled: true
-  handshake_timeout: 30s
-```
-
-### Frontend (Environment Variables)
-
-```env
-VITE_API_BASE_URL=/api
-VITE_MQTT_HOST=localhost
-VITE_MQTT_PORT=8883
-VITE_APP_TITLE=TrailMQ
-```
+All decisions are:
+- Enforced
+- Recorded
+- Verifiable
+- Immutable
 
 ---
 
-## 🧠 Policy & Handshake System
+## 🔒 Security Model
 
-TrailMQ includes a powerful runtime validation system for enterprise environments:
+- TLS and mTLS for transport security
+- Identity-based access decisions
+- Network boundary enforcement
+- Rate limiting with audit evidence
 
-- **Topic-based Rules**: QoS requirements, payload size limits, sequencing
-- **Client Handshakes**: Mandatory validation on connect
-- **Real-time Enforcement**: Block or warn on policy violations
-- **Full Audit Logging**: Every decision is logged
-
-### Example Policy
-
-```yaml
-policies:
-  - name: "production-sensors"
-    topics:
-      - "factory/+/sensors/#"
-    rules:
-      min_qos: 1
-      max_payload_size: 1024
-      require_handshake: true
-```
-
-📖 **Full Documentation**: [backend/POLICY_HANDSHAKE.md](backend/POLICY_HANDSHAKE.md)
+Security is enforced, not inferred.
 
 ---
 
-## 🔒 Security
+## 🗺️ Roadmap (Evidence-first)
 
-| Area | Recommendation |
-|------|----------------|
-| **TLS** | Always enable for production |
-| **Certificates** | Rotate regularly (90 days recommended) |
-| **Credentials** | Change defaults, use strong passwords |
-| **Audit Logs** | Monitor and archive regularly |
-| **Network** | Use firewall, limit MQTT port exposure |
+- Audit narrative timeline improvements
+- Extended decision trace views
+- Evidence export formats for regulated audits
+- Regulated AI pipeline integration
 
-### Reporting Vulnerabilities
-
-Please report security issues privately via [GitHub Security Advisories](https://github.com/RainerGewalt/TrailMQ/security/advisories).
-
----
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [📘 DOCUMENTATION.md](DOCUMENTATION.md) | Full system overview |
-| [⚙️ docs/guides/](docs/guides/) | Setup & deployment guides |
-| [🔐 POLICY_HANDSHAKE.md](backend/POLICY_HANDSHAKE.md) | Policy system reference |
-| [🌐 docs/API.md](docs/API.md) | REST API reference |
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Cluster mode / High availability
-- [ ] Prometheus metrics endpoint
-- [ ] Grafana dashboard templates
-- [ ] LDAP/Active Directory integration
-- [ ] WebSocket MQTT support
-- [ ] Message persistence options
+Monitoring dashboards and payload inspection are explicitly **out of scope**.
 
 ---
 
 ## 📄 License
 
-TrailMQ is distributed under a **proprietary freemium license**:
+TrailMQ is distributed under a **proprietary freemium license**.
 
-- ✅ **Free**: Docker images available for personal and evaluation use
-- ✅ **Free**: Community support via GitHub Issues
-- 💼 **Commercial**: Enterprise features and support require a license
-
-The source code is **not open source**. Docker images are provided via Docker Hub.
-
-For commercial licensing inquiries, please contact via GitHub.
+- Free Docker images for evaluation
+- Commercial licenses available for enterprise use
+- Source code is not open source
 
 ---
 
 ## 👤 Author
 
-**Florian (RainerGewalt)**
-
+Florian (RainerGewalt)  
 Industrial IIoT • Secure Messaging • Regulated Systems
-
-[![GitHub](https://img.shields.io/badge/GitHub-RainerGewalt-181717?logo=github)](https://github.com/RainerGewalt)
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#-trailmq)**
-
-Made with ❤️ for industrial IoT
-
-</div>
