@@ -1,4 +1,5 @@
-# 🔌 TrailMQ
+
+# TrailMQ
 
 [![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
 [![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
@@ -6,64 +7,83 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-Proprietary-blue)](LICENSE)
 
-**Audit-first messaging system for regulated and industrial environments**
+**Make MQTT reviewable**
 
-TrailMQ is not a classic MQTT dashboard or monitoring tool.  
-It is designed to **prove that message-based systems behaved correctly** –  
-cryptographically verifiable, policy-driven, and audit-ready by design.
+TrailMQ helps regulated teams control access, enforce policies and keep reviewable audit evidence on top of MQTT systems.
+
+It is not just a broker with logging added on top.  
+It is a control and evidence layer for message based systems in regulated environments.
 
 🌐 **Website**: https://trailmq.com  
-🐳 **Docker Hub**: Backend | Frontend
+🐳 **Docker Hub**: [Backend](https://hub.docker.com/r/rainergewalt/trailmq-backend) | [Frontend](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
 
 ---
 
-## What TrailMQ is – and is not
+## Why TrailMQ
 
-**TrailMQ is:**
-- An audit-first control plane for MQTT-based systems
-- Built for regulated environments (GxP, MedTech, Industrial AI)
-- Focused on evidence, traceability, and enforced behavior
-- Designed to explain system behavior under scrutiny
+Standard brokers move messages.  
+TrailMQ helps you prove what happened.
 
-**TrailMQ is not:**
-- A payload inspection or message viewer
-- A real-time monitoring dashboard
-- A generic IoT platform or cloud broker
+Teams often need to answer questions later:
+
+- Who changed what
+- Which policy was active
+- Why was something allowed or blocked
+- How can this be reviewed months later
+
+TrailMQ is built for exactly that.
 
 ---
 
-## ✨ Capabilities
+## What TrailMQ is
+
+- A control and evidence layer for MQTT based systems
+- Built for regulated and industrial environments
+- Focused on traceability, policy enforcement and reviewable evidence
+- Designed for teams that need answers later
+
+## What TrailMQ is not
+
+- A payload inspection tool
+- A real time monitoring dashboard
+- A generic IoT platform
+- A message viewer
+
+---
+
+## Capabilities
 
 | Area | Description |
 |-----|-------------|
-| 🧾 **Audit & Evidence** | Cryptographic audit chain, system history, exportable proofs |
-| 🧠 **Policy Enforcement** | Runtime decisions, topic bindings, handshake validation |
-| 🔐 **Access Boundaries** | Identity, network and rate limits – enforced and traceable |
-| 📊 **Behavior Insights** | Aggregated message behavior (no payload inspection) |
-| 🖥️ **Evidence UI** | Calm, read-only focused interface for auditors and operators |
-| 🐳 **Deployment** | Docker-first, deterministic builds |
+| Audit and Evidence | Cryptographic audit chain, system history, exportable evidence |
+| Policy Enforcement | Runtime decisions, topic bindings, handshake validation |
+| Access Control | Identity, network and rate limits with traceable enforcement |
+| Behavior Insights | Aggregated system behavior without payload inspection |
+| Evidence UI | Read only interface for operators, reviewers and auditors |
+| Deployment | Docker first setup with deterministic builds |
 
 ---
 
-## 🧭 Architecture Overview
+## Architecture Overview
 
-TrailMQ separates **message transport** from **decision enforcement** and **audit evidence**.
+TrailMQ separates message transport from policy enforcement and audit evidence.
 
-```
-Clients → Transport Layer → Policy Enforcement → Audit & Evidence Chain
+```text
+Clients → Transport Layer → Policy Enforcement → Audit and Evidence Chain
                        ↘ Evidence UI / REST API
-```
+````
 
-The system does not explain behavior by inspecting messages afterwards.  
-It enforces rules at runtime and records cryptographic proof that those rules were applied.
+It does not try to explain behavior afterwards by parsing logs.
+It enforces rules at runtime and records evidence that those rules were applied.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
-- Docker 20.10+
-- Docker Compose v2+
+
+* Docker 20.10+
+* Docker Compose v2+
 
 ### Start TrailMQ
 
@@ -75,67 +95,61 @@ docker compose up -d
 
 ### Access Points
 
-| Service | URL |
-|-------|-----|
-| Web Interface | http://localhost/trailmq/ |
-| MQTT Broker | localhost:8883 (TLS) |
-| REST API | http://localhost/api |
+| Service       | URL                                                    |
+| ------------- | ------------------------------------------------------ |
+| Web Interface | [http://localhost/trailmq/](http://localhost/trailmq/) |
+| MQTT Broker   | localhost:8883                                         |
+| REST API      | [http://localhost/api](http://localhost/api)           |
 
 ---
 
-## 🧠 Policy & Decision Model
+## Policy and Decision Model
 
-TrailMQ does not log messages to explain behavior later.  
-It **enforces behavior at runtime** and records cryptographic evidence of every decision.
+TrailMQ does not rely on plain logs to explain behavior later.
+It enforces behavior at runtime and records evidence for every decision.
 
 Policies define:
-- Who may publish or subscribe
-- Which topics are allowed
-- Which constraints apply (QoS, sequencing, handshakes)
+
+* Who may publish or subscribe
+* Which topics are allowed
+* Which constraints apply
 
 Bindings define where policies apply.
 
-All decisions are:
-- Enforced
-- Recorded
-- Verifiable
-- Immutable
+Decisions are:
+
+* Enforced
+* Recorded
+* Verifiable
+* Immutable
 
 ---
 
-## 🔒 Security Model
+## Security Model
 
-- TLS and mTLS for transport security
-- Identity-based access decisions
-- Network boundary enforcement
-- Rate limiting with audit evidence
+* TLS and mTLS for transport security
+* Identity based access decisions
+* Network boundary enforcement
+* Rate limiting with audit evidence
 
 Security is enforced, not inferred.
 
 ---
 
-## 🗺️ Roadmap (Evidence-first)
+## License
 
-- Audit narrative timeline improvements
-- Extended decision trace views
-- Evidence export formats for regulated audits
-- Regulated AI pipeline integration
+TrailMQ is distributed under a proprietary freemium license.
 
-Monitoring dashboards and payload inspection are explicitly **out of scope**.
-
----
-
-## 📄 License
-
-TrailMQ is distributed under a **proprietary freemium license**.
-
-- Free Docker images for evaluation
-- Commercial licenses available for enterprise use
-- Source code is not open source
+* Free Docker images for evaluation
+* Commercial licenses available for enterprise use
+* Source code is not open source
 
 ---
 
-## 👤 Author
+## Author
 
-Florian (RainerGewalt)  
+Florian Przybylak
 Industrial IIoT • Secure Messaging • Regulated Systems
+
+```
+
