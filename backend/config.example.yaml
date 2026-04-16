@@ -78,7 +78,29 @@ default_role: ""
 # User Management
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Roles define sets of permissions
+# Canonical product roles
+#
+# admin
+#   Full system access:
+#   platform, users, policies, exports, global control
+#
+# operator
+#   Operational runtime role:
+#   flows, states, reacting to incidents, limited control
+#
+# auditor
+#   Read-mostly trust/review role:
+#   proof, audit, GMP/GxP-oriented exports, review readiness
+#
+# viewer
+#   General read-only visibility:
+#   overview, status, non-critical inspection
+#
+# NOTE:
+# Legacy roles like "publisher" / "subscriber" are not shown here anymore.
+# They may still exist temporarily during migration, but new configs should
+# use only the canonical roles below.
+
 roles:
   - id: 1
     name: admin
@@ -86,27 +108,35 @@ roles:
     permissions: ["*"]
 
   - id: 2
-    name: publisher
-    description: "Can publish to topics"
-    permissions: ["publish:*"]
+    name: operator
+    description: "Operational runtime access"
+    permissions:
+      - "publish:*"
+      - "subscribe:*"
 
   - id: 3
-    name: subscriber
-    description: "Can subscribe to topics"
-    permissions: ["subscribe:*"]
+    name: auditor
+    description: "Read-mostly trust, proof, audit and GMP review access"
+    permissions:
+      - "subscribe:*"
 
   - id: 4
     name: viewer
-    description: "Read-only access"
-    permissions: ["subscribe:*"]
+    description: "General read-only access"
+    permissions:
+      - "subscribe:*"
 
 # Users can be defined in three ways:
 # 1. Plain password (not recommended for production)
 # 2. Password from file (password_file)
-# 3. Hashed password (password_hash - use argon2)
+# 3. Hashed password (password_hash - use argon2id or bcrypt)
+#
+# managed_by_config:
+#   true  -> user is included in config seeding / sync
+#   false -> user is NOT seeded/synced from config (DB-managed / external)
 
 users:
-  # Admin user with plain password
+  # Platform administrator with plain password
   - username: admin
     password: change-this-password
     roles: [admin]
@@ -114,22 +144,41 @@ users:
     enabled: true
     managed_by_config: true
 
-  # Publisher with password from file
-  - username: publisher
-    password_file: ./secrets/publisher.pwd
-    roles: [publisher]
-    email: publisher@example.com
+  # Runtime/operator user with password from file
+  - username: operator
+    password_file: ./secrets/operator.pwd
+    roles: [operator]
+    email: operator@example.com
     enabled: true
     managed_by_config: true
 
-  # Subscriber with hashed password (argon2)
-  # Generate with: echo -n "password" | argon2 somesalt -id -t 3 -m 16 -p 2
-  - username: subscriber
+  # Auditor with hashed password
+  # Example generation:
+  #   echo -n "StrongPassword123!" | argon2 somesalt -id -t 3 -m 16 -p 2
+  - username: auditor
     password_hash: "$argon2id$v=19$m=65536,t=3,p=2$..."
-    roles: [subscriber]
-    email: subscriber@example.com
+    roles: [auditor]
+    email: auditor@example.com
     enabled: true
     managed_by_config: true
+
+  # Read-only viewer
+  - username: viewer
+    password: change-this-too
+    roles: [viewer]
+    email: viewer@example.com
+    enabled: true
+    managed_by_config: true
+
+  # Example for a DB-managed / externally managed account:
+  # This entry documents the shape, but will not be seeded because
+  # managed_by_config is false.
+  - username: external-admin
+    password: external-password-placeholder
+    roles: [admin]
+    email: external-admin@example.com
+    enabled: true
+    managed_by_config: false
 
 # Auth sync mode: "merge" or "replace"
 # - merge: Merge config users with database users
