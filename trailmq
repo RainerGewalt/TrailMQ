@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# TrailMQ CLI launcher
+# Entry point for guided Docker-first TrailMQ distribution.
+
+set -euo pipefail
+
+TRAILMQ_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export TRAILMQ_ROOT
+
+# shellcheck source=scripts/common.sh
+source "${TRAILMQ_ROOT}/scripts/common.sh"
+
+cmd="${1:-menu}"
+shift || true
+
+case "$cmd" in
+  launch)
+    exec "${TRAILMQ_ROOT}/scripts/launch.sh" "$@"
+    ;;
+
+  up)
+    require_active_recipe
+    check_docker || exit 1
+    log_step "Starting ${ACTIVE_RECIPE}…"
+    compose_cmd up -d
+    log_ok "Stack is up."
+    print_access_points
+    ;;
+
+  down)
+    require_active_recipe
+    check_docker || exit 1
+    log_step "Stopping ${ACTIVE_RECIPE}…"
+    compose_cmd down --remove-orphans
+    log_ok "Stack stopped."
+    ;;
+
+  status)
+    exec "${TRAILMQ_ROOT}/scripts/status.sh" "$@"
+    ;;
+
+  logs)
+    require_active_recipe
+    check_docker || exit 1
+    compose_cmd logs -f --tail=200 "$@"
+    ;;
+
+  doctor)
+    exec "${TRAILMQ_ROOT}/scripts/doctor.sh" "$@"
+    ;;
+
+  certs)
+    exec "${TRAILMQ_ROOT}/scripts/certs.sh" "$@"
+    ;;
+
+  demo)
+    log_warn "Guided demos are coming soon."
+    log_info "For now, start the stack with './trailmq launch' and open:"
+    log_info "  http://localhost/trailmq/"
+    exit 0
+    ;;
+
+  reset)
+    require_active_recipe
+    check_docker || exit 1
+
+    recipe_dir="${TRAILMQ_ROOT}/recipes/${ACTIVE_RECIPE}"
+
+    log_warn "This will stop the stack and delete runtime data:"
+    log_info "  - recipes/${ACTIVE_RECIPE}/data/"
+    log_info "  - recipes/${ACTIVE_RECIPE}/logs/"
+    log_info "  - recipes/${ACTIVE_RECIPE}/audit-archive/"
+    echo
+    log_info "It will keep:"
+    log_info "  - recipes/${ACTIVE_RECIPE}/certs/"
+    log_info "  - recipes/${ACTIVE_RECIPE}/secrets/"
+    log_info "  - .trailmq/active-recipe"
+    printf "\nType 'reset' to confirm › "
+    read -r answer
+    if [ "$answer" != "reset" ]; then
+      log_info "Cancelled."
+      exit 0
+    fi
+
+    compose_cmd down -v --remove-orphans || true
+    rm -rf "${recipe_dir}/data" "${recipe_dir}/logs" "${recipe_dir}/audit-archive"
+    mkdir -p "${recipe_dir}/data" "${recipe_dir}/logs" "${recipe_dir}/audit-archive"
+    log_ok "Runtime data cleared."
+    ;;
+
+  purge)
+    require_active_recipe
+    check_docker || exit 1
+
+    recipe_dir="${TRAILMQ_ROOT}/recipes/${ACTIVE_RECIPE}"
+    remove_images=false
+    if [ "${1:-}" = "--images" ]; then
+      remove_images=true
+    fi
+
+    log_warn "This will remove the current TrailMQ recipe runtime:"
+    log_info "  - Docker containers and compose volumes"
+    log_info "  - recipes/${ACTIVE_RECIPE}/data/"
+    log_info "  - recipes/${ACTIVE_RECIPE}/logs/"
+    log_info "  - recipes/${ACTIVE_RECIPE}/audit-archive/"
+    log_info "  - recipes/${ACTIVE_RECIPE}/certs/"
+    log_info "  - recipes/${ACTIVE_RECIPE}/secrets/"
+    log_info "  - .trailmq/active-recipe"
+    if $remove_images; then
+      log_warn "It will also try to remove Docker images declared by the recipe."
+    fi
+    echo
+    printf "Type 'purge' to confirm › "
+    read -r answer
+    if [ "$answer" != "purge" ]; then
+      log_info "Cancelled."
+      exit 0
+    fi
+
+    compose_cmd down -v --remove-orphans || true
+
+    if $remove_images; then
+      (cd "${recipe_dir}" && docker compose down --rmi local -v --remove-orphans) || true
+    fi
+
+    rm -rf \
+      "${recipe_dir}/data" \
+      "${recipe_dir}/logs" \
+      "${recipe_dir}/audit-archive" \
+      "${recipe_dir}/certs" \
+      "${recipe_dir}/secrets"
+
+    mkdir -p \
+      "${recipe_dir}/data" \
+      "${recipe_dir}/logs" \
+      "${recipe_dir}/audit-archive" \
+      "${recipe_dir}/certs" \
+      "${recipe_dir}/secrets"
+
+    rm -f "${ACTIVE_RECIPE_FILE}"
+
+    log_ok "TrailMQ recipe runtime purged."
+    log_info "Run './trailmq launch' to create a fresh setup."
+    ;;
+
+  version|--version|-v)
+    echo "TrailMQ CLI — Docker-first distribution launcher"
+    echo "Backend image:  ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:latest}"
+    echo "Frontend image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:latest}"
+    ;;
+
+  menu|help|--help|-h)
+    print_menu
+    ;;
+
+  *)
+    log_err "Unknown command: $cmd"
+    print_menu
+    exit 1
+    ;;
+esac

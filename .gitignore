@@ -1,0 +1,30 @@
+# --- TrailMQ CLI state ---
+.trailmq/active-recipe
+
+# --- Recipe runtime data — generated on first run, never commit ---
+recipes/*/data/
+recipes/*/logs/
+recipes/*/audit-archive/
+
+# --- Secrets and certs — demo certs are generated locally ---
+recipes/*/certs/*.pem
+recipes/*/certs/*.crt
+recipes/*/certs/*.key
+recipes/*/certs/*.srl
+recipes/*/secrets/*.txt
+recipes/*/secrets/*.pwd
+
+# Keep the folders themselves in git via .gitkeep
+!recipes/*/certs/.gitkeep
+!recipes/*/secrets/.gitkeep
+
+# --- Local env ---
+.env
+*.local
+
+# --- Editor / OS junk ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

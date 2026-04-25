@@ -1,0 +1,58 @@
+# TrailMQ Plugin Catalog
+#
+# The source of truth for which plugins exist and what they do.
+# Consumed by the CLI (status, future launch plugin picker) and
+# by the docs. Status values:
+#
+#   available — ships and works today
+#   beta      — ships but not stable
+#   planned   — documented but not yet implemented
+#
+# All entries are currently "planned" — the plugin system is on the
+# roadmap and these describe the shape it will take.
+
+plugins:
+  - id: decision-trace
+    name: Decision Trace
+    status: planned
+    edition: standard
+    runtime: embedded
+    description: |
+      Explains why a broker decision was made. Every accept, deny, or
+      rate-limit event produces a trace linked to the audit chain.
+    ships_in:
+      - secure-mqtt-core     # planned upgrade path
+      - explain-decisions
+
+  - id: historical-context-feed
+    name: Historical Context Feed
+    status: planned
+    edition: standard
+    runtime: embedded
+    description: |
+      Accepts historical comparison values through REST and makes them
+      available to other plugins (e.g. KPI Lite) for deviation checks.
+    ships_in:
+      - live-vs-historical-kpi
+
+  - id: kpi-lite
+    name: KPI Lite
+    status: planned
+    edition: standard
+    runtime: embedded
+    description: |
+      Compares live MQTT values with stored historical context. Emits a
+      deviation metric that is recorded in the audit chain.
+    ships_in:
+      - live-vs-historical-kpi
+
+  - id: domain-context-lite
+    name: Domain Context Lite
+    status: planned
+    edition: standard
+    runtime: embedded
+    description: |
+      Extracts machine, batch or metric context from topic patterns and
+      payload headers. Attaches the context to audit events.
+    ships_in:
+      - live-vs-historical-kpi

@@ -1,0 +1,35 @@
+# TrailMQ user credential examples
+#
+# These examples are documentation only.
+# Copy one into recipes/secure-mqtt-core/config.yaml only after providing
+# real credentials. Do not leave password_file entries pointing to files that
+# do not exist.
+
+# Example: password kept in an external file.
+# Make sure the file exists before starting the backend.
+#
+# - username: fileuser
+#   password_file: ./secrets/fileuser.pwd
+#   roles: [viewer, publisher]
+#   email: "fileuser@example.local"
+#   enabled: true
+#   managed_by_config: true
+
+# Example: pre-hashed password using argon2id.
+#
+# - username: hashuser
+#   password_hash: "$argon2id$v=19$m=65536,t=3,p=2$c29tZXNhbHQ$2idn4xkn6Uy4fVhQ4mAZnR9pQ3hUbbKhx8cczX0lML8"
+#   roles: [viewer]
+#   email: "hashuser@example.local"
+#   enabled: true
+#   managed_by_config: true
+
+# Example: user not managed by this config file.
+# Change the password before enabling.
+#
+# - username: devopsadmin
+#   password: CHANGE_ME
+#   roles: [admin, devops]
+#   email: "devops@example.local"
+#   enabled: false
+#   managed_by_config: false

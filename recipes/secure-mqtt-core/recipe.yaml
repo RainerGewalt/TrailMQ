@@ -1,0 +1,39 @@
+# TrailMQ Recipe metadata
+# Consumed by the CLI to describe the recipe in the launcher and status.
+
+id: secure-mqtt-core
+name: Secure MQTT Core
+status: available
+summary: Policies, audit trail, evidence chain, Web UI.
+description: |
+  The baseline TrailMQ stack: TLS MQTT broker on 8883, REST API, Web UI
+  via reverse proxy, cryptographic audit chain, and policy-based access
+  control. This is what you run when you want "secure, audited MQTT" and
+  nothing more. Every other recipe builds on top of this one.
+
+# Images used by this recipe.
+# Pinning is intentionally deferred — env vars override at runtime.
+# See .env.example for the recommended variables.
+images:
+  backend: rainergewalt/trailmq-backend:latest
+  frontend: rainergewalt/trailmq-frontend:latest
+  nginx: nginx:stable-alpine
+
+# Capabilities enabled in this recipe.
+features:
+  core:
+    tls: true
+    audit_chain: true
+    policy_enforcement: true
+    rest_api: true
+    web_ui: true
+  plugins:
+    decision_trace: false
+    historical_context_feed: false
+    kpi_lite: false
+    domain_context: false
+
+# Ports exposed to the host.
+ports:
+  - { host: 80,    container: 80,   service: nginx,   name: "HTTP / Web UI" }
+  - { host: 8883,  container: 8883, service: backend, name: "MQTT over TLS" }

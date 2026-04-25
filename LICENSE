@@ -1,0 +1,60 @@
+TrailMQ Evaluation License
+===========================
+
+Copyright (c) 2025 Florian Gewalt. All rights reserved.
+
+This license governs use of the TrailMQ Distribution — the contents of this
+repository and the official Docker images published under the names
+"rainergewalt/trailmq-backend" and "rainergewalt/trailmq-frontend"
+(together, the "Software").
+
+1. Grant for Evaluation
+
+   You are granted a non-exclusive, non-transferable, royalty-free license
+   to install, run, and evaluate the Software for the following purposes:
+
+     a) personal learning and experimentation;
+     b) non-production technical evaluation within an organization;
+     c) demonstration of the Software's capabilities.
+
+2. Restrictions
+
+   Without a separate commercial license agreement, you may not:
+
+     a) use the Software in a production environment or for any purpose
+        that generates revenue, directly or indirectly;
+     b) offer the Software, or any service derived from it, to third
+        parties on a hosted, managed, or subscription basis;
+     c) redistribute, sublicense, or sell the Software;
+     d) remove, alter, or obscure any license, copyright, or attribution
+        notices;
+     e) decompile, disassemble, or otherwise attempt to derive the source
+        form of any closed-source component of the Software.
+
+3. Source Code
+
+   The source code of TrailMQ is proprietary and is not distributed under
+   this license. Public artifacts (configuration, scripts, documentation)
+   in this repository may be read and adapted locally for the purposes
+   described in section 1.
+
+4. No Warranty
+
+   The Software is provided "AS IS", without warranty of any kind, express
+   or implied, including but not limited to the warranties of
+   merchantability, fitness for a particular purpose, and non-infringement.
+
+5. Limitation of Liability
+
+   In no event shall the copyright holder be liable for any claim, damages,
+   or other liability, whether in an action of contract, tort, or
+   otherwise, arising from, out of, or in connection with the Software or
+   the use or other dealings in the Software.
+
+6. Commercial Use
+
+   To use the Software for any purpose not covered by this license,
+   including production deployment or commercial redistribution, contact
+   the copyright holder to obtain a commercial license:
+
+     https://trailmq.com

@@ -18,7 +18,7 @@ mqtt_use_tls: true
 rest_port: 8443
 rest_use_tls: false
 
-# WebSocket-Konfiguration
+# WebSocket configuration
 mqtt_ws_port: 9001
 mqtt_ws_use_tls: false
 mqtt_wss_port: 9443
@@ -29,7 +29,7 @@ mqtt_ws_allowed_origins:
   - "http://nginx"
   - "http://192.168.189.29:8888"
   - "http://localhost"
-  - "http://localhost:80"    # ← explicit port 80
+  - "http://localhost:80"
 mqtt_ws_max_connections: 1000
 mqtt_ws_ping_interval: 60
 mqtt_ws_read_limit: 1048576  # 1MB
@@ -59,41 +59,33 @@ roles:
     description: "Deployment / monitoring tasks"
     permissions: ["publish:metrics", "subscribe:alerts"]
 
+# Active evaluation users only.
+#
+# Important:
+# Keep documentation-only users out of this active list.
+# The current backend validates password_file entries while loading config.
+# A disabled user with a missing password_file can therefore stop startup.
+#
+# Credential examples are documented in:
+#   docs/config-examples/users.yaml
+#
+# The launcher generates random passwords into these files on first run:
+#   ./secrets/testadmin.pwd
+#   ./secrets/testuser.pwd
 users:
-  - username: testuser
-    password: PubUser!2025X
-    roles: [publisher]
-    email: ""
-    enabled: true
-    managed_by_config: true
-    
   - username: testadmin
-    password: PubAdmin!2025X
+    password_file: ./secrets/testadmin.pwd
     roles: [admin]
     email: ""
     enabled: true
     managed_by_config: true
 
-  - username: fileuser
-    password_file: ./secrets/fileuser.pwd
-    roles: [viewer, publisher]
-    email: "fileuser@example.local"
+  - username: testuser
+    password_file: ./secrets/testuser.pwd
+    roles: [publisher]
+    email: ""
     enabled: true
     managed_by_config: true
-
-  - username: hashuser
-    password_hash: "$argon2id$v=19$m=65536,t=3,p=2$c29tZXNhbHQ$2idn4xkn6Uy4fVhQ4mAZnR9pQ3hUbbKhx8cczX0lML8"
-    roles: [viewer]
-    email: "hashuser@example.local"
-    enabled: true
-    managed_by_config: true
-
-  - username: devopsadmin
-    password: F9!xGlaCedar-2025
-    roles: [admin, devops]
-    email: "devops@example.local"
-    enabled: true
-    managed_by_config: false
 
 export_dir: ./data/export
 
@@ -127,8 +119,8 @@ cors:
   allowed_origins:
     - http://nginx
     - http://localhost:8888
-    - http://localhost:5173  # Vite dev server
-    - http://localhost:3000  # Alternative dev port
+    - http://localhost:5173
+    - http://localhost:3000
     - http://192.168.189.29:8888
     - http://localhost
   allowed_methods:

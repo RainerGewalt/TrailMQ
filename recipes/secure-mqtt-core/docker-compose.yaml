@@ -1,4 +1,10 @@
-version: "3.8"
+# TrailMQ — Secure MQTT Core
+# Self-contained: all paths resolve relative to this file.
+# Run from repo root via: ./trailmq up
+# Or directly: cd recipes/secure-mqtt-core && docker compose up -d
+#
+# Image tags can be overridden via .env or environment variables:
+#   TRAILMQ_BACKEND_IMAGE, TRAILMQ_FRONTEND_IMAGE, TRAILMQ_NGINX_IMAGE
 
 networks:
   trailmq-net:
@@ -9,21 +15,21 @@ services:
   # TrailMQ Backend
   # ------------------------------------------------------------
   backend:
-    image: rainergewalt/trailmq-backend:latest
+    image: ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:latest}
     container_name: trailmq-backend
     restart: unless-stopped
     ports:
-      - "8883:8883"          # MQTT TLS extern
+      - "8883:8883"          # MQTT TLS external
     expose:
-      - "8443"               # REST API (HTTPS intern)
-      - "9001"               # MQTT WebSocket (intern) ← HINZUGEFÜGT
+      - "8443"               # REST API (internal)
+      - "9001"               # MQTT WebSocket (internal)
     volumes:
-      - ./backend/config.yaml:/app/config.yaml:ro
-      - ./backend/data:/app/data
-      - ./backend/logs:/app/logs
-      - ./backend/audit-archive:/app/audit-archive
-      - ./backend/certs:/app/certs:ro
-      - ./backend/secrets:/app/secrets:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./audit-archive:/app/audit-archive
+      - ./certs:/app/certs:ro
+      - ./secrets:/app/secrets:ro
     environment:
       GO_ENV: production
     networks:
@@ -43,7 +49,6 @@ services:
           cpus: "0.25"
           memory: 256M
     healthcheck:
-      # Falls Backend HTTP auf separatem Port anbietet, sonst anpassen:
       test: ["CMD-SHELL", "wget --no-check-certificate --no-verbose --tries=1 --spider https://localhost:8443/health || exit 1"]
       interval: 30s
       timeout: 10s
@@ -54,7 +59,7 @@ services:
   # TrailMQ Frontend
   # ------------------------------------------------------------
   frontend:
-    image: rainergewalt/trailmq-frontend:latest
+    image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:latest}
     container_name: trailmq-frontend
     restart: unless-stopped
     expose:
@@ -68,13 +73,13 @@ services:
   # Reverse Proxy
   # ------------------------------------------------------------
   nginx:
-    image: nginx:stable-alpine
+    image: ${TRAILMQ_NGINX_IMAGE:-nginx:stable-alpine}
     container_name: trailmq-reverse-proxy
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - backend
       - frontend
