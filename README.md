@@ -73,10 +73,12 @@ Choose › 1
 
 Open TrailMQ
   Web UI    http://localhost/trailmq/
-  REST API  http://localhost/api
+  REST API  http://localhost/api/v1
   MQTT TLS  localhost:8883
   MQTT WS   ws://localhost/mqtt
 ```
+
+---
 
 ## What `./trailmq status` looks like
 
@@ -102,14 +104,43 @@ Plugins
 
 Open
   Web UI       http://localhost/trailmq/
-  REST API     http://localhost/api
+  REST API     http://localhost/api/v1
   MQTT TLS     localhost:8883
   MQTT WS      ws://localhost/mqtt
 ```
 
 ---
 
-## Start with Core. Add Context. Prove Everything.
+## REST API and Review Surface
+
+TrailMQ is not only controlled through the Web UI. The same product surface is
+available through the REST API.
+
+Default local API endpoint:
+
+```text
+http://localhost/api/v1
+```
+
+Use it to:
+
+- check health, readiness and metrics
+- log in with the generated evaluation users
+- inspect controlled MQTT topics
+- resolve and validate policies
+- review queue and dead-letter state
+- read audit entries and validate the audit chain
+- export evidence-oriented records for review
+
+This makes TrailMQ scriptable for local evaluation, demos, monitoring and
+integration checks.
+
+For the full API walkthrough, see
+[`recipes/secure-mqtt-core/README.md`](recipes/secure-mqtt-core/README.md).
+
+---
+
+## Control MQTT. Keep the Evidence.
 
 ```text
 MQTT Message
@@ -123,10 +154,40 @@ Audit Evidence          cryptographically chained record
 Plugins add context     decision trace, historical context, KPIs
 ```
 
-TrailMQ does not explain behavior by inspecting messages afterwards. It enforces
-rules at runtime and records proof that those rules were applied.
+TrailMQ does not rely only on inspecting logs afterwards. It applies rules at
+runtime and records audit evidence around the resulting broker decisions.
 
 See [`docs/architecture.md`](docs/architecture.md) for the longer story.
+
+---
+
+## Internal Verification
+
+TrailMQ is developed with an internal scenario-based verification approach.
+
+The internal verification suite is not part of the public evaluation package,
+but it is used during development to exercise TrailMQ through its real product
+surfaces:
+
+- MQTT over TLS
+- REST authentication
+- topic control
+- policy resolution
+- queue and dead-letter behavior
+- audit recording
+- audit-chain validation
+- health, readiness and metrics endpoints
+- negative and security behavior
+
+The goal is not only to check whether MQTT messages can be transported.
+
+The goal is to check whether TrailMQ remains controllable, inspectable and
+reviewable under realistic conditions.
+
+This keeps the product promise grounded:
+
+> TrailMQ should not only move MQTT messages. It should help explain what
+> happened around them.
 
 ---
 
@@ -165,9 +226,17 @@ TrailMQ/
 
 ## 🔒 What TrailMQ is — and is not
 
-**TrailMQ is:** an audit-first control plane for MQTT, built for regulated
-environments (GxP, MedTech, Industrial AI), focused on evidence and enforced
-behavior.
+**TrailMQ is:** an audit-first control plane for MQTT, built for teams operating
+in regulated or audit-sensitive environments, focused on controlled messaging,
+reviewability and evidence-oriented behavior.
+
+TrailMQ can support regulated engineering practices by exposing audit records,
+policy decisions, queue state and evidence-oriented exports.
+
+TrailMQ itself does not certify a system as GMP, GxP, CSV, Annex 11 or
+21 CFR Part 11 compliant. Compliance depends on the full validated system,
+configuration, operating procedures, user management, infrastructure and
+organizational controls.
 
 **TrailMQ is not:** a payload inspector, a real-time monitoring dashboard,
 or a generic IoT cloud broker.
@@ -187,6 +256,8 @@ or a generic IoT cloud broker.
 Proprietary evaluation license — see [`LICENSE`](LICENSE). Free for personal
 learning, non-production evaluation, and demos. Commercial use requires a
 separate agreement: https://trailmq.com
+
+---
 
 ## 👤 Author
 
