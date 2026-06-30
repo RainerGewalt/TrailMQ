@@ -1,10 +1,11 @@
 # TrailMQ — Secure MQTT Core
 # Self-contained: all paths resolve relative to this file.
-# Run from repo root via: ./trailmq up
+# Run from repo root via: ./trailmq start
 # Or directly: cd recipes/secure-mqtt-core && docker compose up -d
 #
-# Image tags can be overridden via .env or environment variables:
+# Image tags and host ports can be overridden via .env or environment variables:
 #   TRAILMQ_BACKEND_IMAGE, TRAILMQ_FRONTEND_IMAGE, TRAILMQ_NGINX_IMAGE
+#   TRAILMQ_HTTP_PORT, TRAILMQ_MQTT_TLS_PORT
 
 networks:
   trailmq-net:
@@ -19,7 +20,7 @@ services:
     container_name: trailmq-backend
     restart: unless-stopped
     ports:
-      - "8883:8883"          # MQTT TLS external
+      - "${TRAILMQ_MQTT_TLS_PORT:-8883}:8883"  # MQTT TLS external
     expose:
       - "8443"               # REST API (internal)
       - "9001"               # MQTT WebSocket (internal)
@@ -49,7 +50,7 @@ services:
           cpus: "0.25"
           memory: 256M
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-check-certificate --no-verbose --tries=1 --spider https://localhost:8443/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8443/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -77,7 +78,7 @@ services:
     container_name: trailmq-reverse-proxy
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "${TRAILMQ_HTTP_PORT:-80}:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

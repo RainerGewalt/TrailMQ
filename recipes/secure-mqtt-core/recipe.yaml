@@ -33,7 +33,8 @@ features:
     kpi_lite: false
     domain_context: false
 
-# Ports exposed to the host.
+# Ports exposed to the host by default. Host ports can be changed through
+# TRAILMQ_HTTP_PORT and TRAILMQ_MQTT_TLS_PORT.
 ports:
   - { host: 80,    container: 80,   service: nginx,   name: "HTTP / Web UI" }
   - { host: 8883,  container: 8883, service: backend, name: "MQTT over TLS" }

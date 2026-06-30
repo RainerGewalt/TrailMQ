@@ -1,264 +1,160 @@
-# 🔌 TrailMQ
+# TrailMQ
 
 [![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
 [![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
 [![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
 
-**Audit-first MQTT control plane.**
+TrailMQ is an audit-first MQTT control plane. It runs MQTT traffic through
+policy enforcement and records reviewable evidence around broker decisions,
+queue behavior, authentication, and audit-chain integrity.
 
-TrailMQ controls MQTT messages, enforces policies, and preserves verifiable
-audit evidence.
+The public repository is a Docker-first evaluation package: CLI launcher,
+recipes, configuration, and documentation. The backend and frontend are shipped
+as Docker images.
+
+## Start locally
+
+Requirements:
+
+- Docker 20.10+
+- Docker Compose v2+
+- Bash on Linux, macOS, or WSL
 
 ```bash
 git clone https://github.com/RainerGewalt/TrailMQ.git
 cd TrailMQ
-./trailmq launch
+./trailmq quickstart
 ```
 
----
+That selects `Secure MQTT Core`, generates local demo certificates and
+evaluation passwords, and starts the stack. Use `./trailmq launch` only if you
+want the guided menu.
 
-## Choose your Starter Kit
+Default local surfaces:
 
-| Starter Kit                |    Status | Purpose                                                             |
-| -------------------------- | --------: | ------------------------------------------------------------------- |
-| **Secure MQTT Core**       | Available | Run TrailMQ with policy enforcement, audit trail and evidence chain |
-| **Explain Decisions**      |   Planned | Add decision traces for broker decisions                            |
-| **Live vs Historical KPI** |   Planned | Compare live MQTT values with external historical context           |
+| Surface  | URL or address                |
+| -------- | ----------------------------- |
+| Web UI   | `http://localhost/trailmq/`   |
+| REST API | `http://localhost/api/v1`     |
+| MQTT TLS | `localhost:8883`              |
+| MQTT WS  | `ws://localhost/mqtt`         |
 
-Each Starter Kit is a self-contained recipe under [`recipes/`](./recipes/).
-
----
-
-## What `./trailmq launch` looks like
+Evaluation passwords are generated on first launch and stored in:
 
 ```text
-🚀 TrailMQ Launcher
-
-Available now
-
-  [1] Secure MQTT Core         — policies, audit trail, evidence chain
-
-Preview  (planned for a future release)
-
-  [ ] Explain Decisions        planned
-  [ ] Live vs Historical KPI   planned
-  [ ] Audit Evidence Demo      planned
-
-Choose a Starter Kit › 1
-
-→ Recipe selected:  secure-mqtt-core
-✓ Runtime folders prepared.
-✓ Config ready: recipes/secure-mqtt-core/config.yaml
-
-! No TLS certificates found.
-
-  [1] Generate local demo certificates  (self-signed, local use only)
-  [2] Use my own certificates
-  [3] Continue without certificates
-
-Choose › 1
-
-! Generating LOCAL DEMO certificates. Do not use for production.
-→ Creating root CA…
-✓ Root CA created.
-→ Creating server key and CSR…
-→ Signing server certificate with local CA…
-✓ Server certificate signed.
-✓ JWT secret generated.
-✓ Evaluation credentials generated.
-✓ Active recipe set.
-
-→ Starting stack…
-✓ Stack is up.
-
-Open TrailMQ
-  Web UI    http://localhost/trailmq/
-  REST API  http://localhost/api/v1
-  MQTT TLS  localhost:8883
-  MQTT WS   ws://localhost/mqtt
+recipes/secure-mqtt-core/secrets/testadmin.pwd
+recipes/secure-mqtt-core/secrets/testuser.pwd
 ```
 
----
+You can print them again with:
 
-## What `./trailmq status` looks like
-
-```text
-TrailMQ Status
-Recipe: Secure MQTT Core (secure-mqtt-core)
-
-Core
-✓ Backend            running
-✓ Frontend           running
-✓ Reverse Proxy      running
-
-Audit
-✓ Audit              enabled
-✓ Evidence chain     enabled
-○ Archived files     0
-
-Plugins
-○ Decision Trace             planned
-○ Historical Context Feed    planned
-○ KPI Lite                   planned
-○ Domain Context Lite        planned
-
-Open
-  Web UI       http://localhost/trailmq/
-  REST API     http://localhost/api/v1
-  MQTT TLS     localhost:8883
-  MQTT WS      ws://localhost/mqtt
+```bash
+./trailmq credentials
 ```
 
----
+## What you can evaluate
 
-## REST API and Review Surface
+- TLS-secured MQTT access
+- role-based users and permissions
+- controlled topic configuration
+- policy resolution and validation
+- queue and dead-letter review
+- audit records and audit-chain validation
+- evidence-oriented exports and product read models
 
-TrailMQ is not only controlled through the Web UI. The same product surface is
-available through the REST API.
+TrailMQ can support traceability and regulated engineering practices, but it
+does not certify a system as GMP, GxP, CSV, Annex 11, or 21 CFR Part 11
+compliant. Compliance depends on the validated system, procedures, users,
+infrastructure, and organizational controls around it.
 
-Default local API endpoint:
+## CLI
 
-```text
-http://localhost/api/v1
-```
+| Command            | Purpose                                      |
+| ------------------ | -------------------------------------------- |
+| `./trailmq quickstart` | One-command local evaluation setup       |
+| `./trailmq start`  | Start or repair the local evaluation setup   |
+| `./trailmq launch` | Guided first run                             |
+| `./trailmq up`     | Start the active recipe                      |
+| `./trailmq down`   | Stop the active recipe                       |
+| `./trailmq status` | Show services, ports, audit state, plugins   |
+| `./trailmq open`   | Show local URLs for the active recipe        |
+| `./trailmq credentials` | Show generated local evaluation login  |
+| `./trailmq logs`   | Tail logs for the active recipe              |
+| `./trailmq doctor` | Check Docker, config, certs, secrets, ports  |
+| `./trailmq certs`  | Generate local demo certificates             |
+| `./trailmq reset`  | Stop stack and wipe runtime data             |
+| `./trailmq purge`  | Remove runtime data, certs, secrets, state   |
 
-Use it to:
+Running `./trailmq` without arguments prints the command menu.
 
-- check health, readiness and metrics
-- log in with the generated evaluation users
-- inspect controlled MQTT topics
-- resolve and validate policies
-- review queue and dead-letter state
-- read audit entries and validate the audit chain
-- export evidence-oriented records for review
+## Starter kits
 
-This makes TrailMQ scriptable for local evaluation, demos, monitoring and
-integration checks.
+| Starter kit                | Status    | Purpose                                            |
+| -------------------------- | --------- | -------------------------------------------------- |
+| Secure MQTT Core           | Available | Policy enforcement, audit trail, evidence chain    |
+| Explain Decisions          | Planned   | Decision traces for broker decisions              |
+| Live vs Historical KPI     | Planned   | Compare live MQTT values with historical context   |
 
-For the full API walkthrough, see
-[`recipes/secure-mqtt-core/README.md`](recipes/secure-mqtt-core/README.md).
+Starter kits live under [`recipes/`](recipes/). The available stack is
+[`recipes/secure-mqtt-core/`](recipes/secure-mqtt-core/).
 
----
-
-## Control MQTT. Keep the Evidence.
-
-```text
-MQTT Message
-    ↓
-TrailMQ Core            transport + authentication
-    ↓
-Policy Decision         enforcement (who, what, how)
-    ↓
-Audit Evidence          cryptographically chained record
-    ↓
-Plugins add context     decision trace, historical context, KPIs
-```
-
-TrailMQ does not rely only on inspecting logs afterwards. It applies rules at
-runtime and records audit evidence around the resulting broker decisions.
-
-See [`docs/architecture.md`](docs/architecture.md) for the longer story.
-
----
-
-## Internal Verification
-
-TrailMQ is developed with an internal scenario-based verification approach.
-
-The internal verification suite is not part of the public evaluation package,
-but it is used during development to exercise TrailMQ through its real product
-surfaces:
-
-- MQTT over TLS
-- REST authentication
-- topic control
-- policy resolution
-- queue and dead-letter behavior
-- audit recording
-- audit-chain validation
-- health, readiness and metrics endpoints
-- negative and security behavior
-
-The goal is not only to check whether MQTT messages can be transported.
-
-The goal is to check whether TrailMQ remains controllable, inspectable and
-reviewable under realistic conditions.
-
-This keeps the product promise grounded:
-
-> TrailMQ should not only move MQTT messages. It should help explain what
-> happened around them.
-
----
-
-## 🧭 CLI
-
-| Command              | What it does                                      |
-| -------------------- | ------------------------------------------------- |
-| `./trailmq launch`   | Guided Starter Kit selection and first run        |
-| `./trailmq up`       | Start the active recipe                           |
-| `./trailmq down`     | Stop the active recipe                            |
-| `./trailmq status`   | Show services, ports, audit status                |
-| `./trailmq logs`     | Tail logs for the active recipe                   |
-| `./trailmq doctor`   | Check Docker, ports, certs, config                |
-| `./trailmq certs`    | Generate local demo certificates                  |
-| `./trailmq reset`    | Stop stack and wipe runtime data                  |
-| `./trailmq purge`    | Remove stack, runtime data, certs, secrets, state |
-
-Running `./trailmq` with no arguments shows the menu.
-
----
-
-## 🧱 What's in this repo
+## Repository map
 
 ```text
 TrailMQ/
 ├── trailmq                     CLI launcher
-├── recipes/                    Starter Kits — self-contained stacks
-│   ├── secure-mqtt-core/       ✅ available today
-│   └── coming-soon/            🔜 planned recipes
+├── recipes/                    self-contained Docker starter kits
+│   ├── secure-mqtt-core/       available evaluation stack
+│   └── coming-soon/            planned recipes
 ├── scripts/                    CLI subcommand implementations
-├── plugins/catalog.yaml        Plugin catalog (with planned status)
-└── docs/                       Concept docs
+├── plugins/catalog.yaml        planned plugin catalog
+└── docs/                       quickstart, architecture, troubleshooting
 ```
 
----
+Runtime data, generated certificates, generated secrets, logs, and audit
+archives are ignored by git.
 
-## 🔒 What TrailMQ is — and is not
+## Useful docs
 
-**TrailMQ is:** an audit-first control plane for MQTT, built for teams operating
-in regulated or audit-sensitive environments, focused on controlled messaging,
-reviewability and evidence-oriented behavior.
+| Document | Use it for |
+| -------- | ---------- |
+| [Quickstart](docs/quickstart.md) | Minimal first run |
+| [Secure MQTT Core](recipes/secure-mqtt-core/README.md) | API walkthrough and recipe details |
+| [Architecture](docs/architecture.md) | Product model and audit-chain concept |
+| [Plugins](docs/plugins.md) | Planned extension model |
+| [Troubleshooting](docs/troubleshooting.md) | Common first-run issues |
+| [Contributing](CONTRIBUTING.md) | Public repo contribution scope |
+| [Security](SECURITY.md) | Vulnerability reporting |
 
-TrailMQ can support regulated engineering practices by exposing audit records,
-policy decisions, queue state and evidence-oriented exports.
+## Configuration
 
-TrailMQ itself does not certify a system as GMP, GxP, CSV, Annex 11 or
-21 CFR Part 11 compliant. Compliance depends on the full validated system,
-configuration, operating procedures, user management, infrastructure and
-organizational controls.
+Copy `.env.example` to `.env` when you need to pin images or avoid local port
+conflicts:
 
-**TrailMQ is not:** a payload inspector, a real-time monitoring dashboard,
-or a generic IoT cloud broker.
+```bash
+cp .env.example .env
+```
 
----
+Common overrides:
 
-## 🚨 Requirements
+```env
+TRAILMQ_HTTP_PORT=8080
+TRAILMQ_MQTT_TLS_PORT=8884
+TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:latest
+TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:latest
+```
 
-- Docker 20.10+
-- Docker Compose v2+
-- Bash (Linux / macOS / WSL on Windows)
+Then run:
 
----
+```bash
+./trailmq start
+```
 
-## 📄 License
+## License
 
-Proprietary evaluation license — see [`LICENSE`](LICENSE). Free for personal
-learning, non-production evaluation, and demos. Commercial use requires a
-separate agreement: https://trailmq.com
+TrailMQ is distributed under a proprietary evaluation license. It is free for
+personal learning, local demos, and non-production technical evaluation.
+Production use, commercial use, managed hosting, redistribution, or use as a
+customer-facing service requires a separate commercial agreement.
 
----
-
-## 👤 Author
-
-Florian Przybylak (RainerGewalt) · Industrial IIoT · Secure Messaging · Regulated Systems
+See [LICENSE](LICENSE). Commercial contact: https://trailmq.com
