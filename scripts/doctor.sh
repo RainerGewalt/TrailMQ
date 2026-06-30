@@ -48,9 +48,9 @@ if has_active_recipe; then
     exit 1
   fi
 else
-  log_warn "Active recipe          (none — run './trailmq launch')"
+  log_warn "Active recipe          (none — run './trailmq quickstart')"
   echo
-  log_info "Doctor stops here. Run './trailmq launch' and re-run './trailmq doctor'."
+  log_info "Doctor stops here. Run './trailmq quickstart' and re-run './trailmq doctor'."
   exit 1
 fi
 
@@ -96,7 +96,7 @@ done
 if $creds_ok; then
   log_ok "Evaluation credentials ${C_DIM}(recipes/${ACTIVE_RECIPE}/secrets/{testadmin,testuser}.pwd)${C_RESET}"
 else
-  log_warn "Evaluation credentials (missing — './trailmq launch' will generate them)"
+  log_warn "Evaluation credentials (missing — './trailmq quickstart' will generate them)"
 fi
 
 # --- 5c. Referenced password files ---
@@ -169,8 +169,8 @@ check_port() {
   return 0
 }
 
-check_port 80 "HTTP / Web UI" || true
-check_port 8883 "MQTT TLS" || true
+check_port "${TRAILMQ_HTTP_PORT}" "HTTP / Web UI / REST API" || true
+check_port "${TRAILMQ_MQTT_TLS_PORT}" "MQTT TLS" || true
 
 # --- 9. Summary ---
 echo

@@ -39,11 +39,70 @@ if [ -f "${TRAILMQ_ROOT}/.env" ]; then
   set +a
 fi
 
+TRAILMQ_HTTP_PORT="${TRAILMQ_HTTP_PORT:-80}"
+TRAILMQ_MQTT_TLS_PORT="${TRAILMQ_MQTT_TLS_PORT:-8883}"
+
+trailmq_http_base_url() {
+  if [ "${TRAILMQ_HTTP_PORT}" = "80" ]; then
+    printf "http://localhost"
+  else
+    printf "http://localhost:%s" "${TRAILMQ_HTTP_PORT}"
+  fi
+}
+
+trailmq_ws_url() {
+  if [ "${TRAILMQ_HTTP_PORT}" = "80" ]; then
+    printf "ws://localhost/mqtt"
+  else
+    printf "ws://localhost:%s/mqtt" "${TRAILMQ_HTTP_PORT}"
+  fi
+}
+
+trailmq_mqtt_tls_address() {
+  printf "localhost:%s" "${TRAILMQ_MQTT_TLS_PORT}"
+}
+
+print_evaluation_credentials() {
+  local recipe="${1:-${ACTIVE_RECIPE:-}}"
+  if [ -z "${recipe}" ]; then
+    log_err "No recipe selected."
+    return 1
+  fi
+
+  local recipe_dir="${TRAILMQ_ROOT}/recipes/${recipe}"
+  if [ ! -d "${recipe_dir}" ]; then
+    log_err "Recipe folder not found: recipes/${recipe}"
+    return 1
+  fi
+
+  cat <<EOF
+
+${C_BOLD}Evaluation login${C_RESET}  ${C_DIM}(local use only)${C_RESET}
+EOF
+
+  local found=false
+  local user pwd_file
+  for user in testadmin testuser; do
+    pwd_file="${recipe_dir}/secrets/${user}.pwd"
+    if [ -s "${pwd_file}" ]; then
+      printf "  %-12s  %s\n" "${user}" "$(cat "${pwd_file}")"
+      found=true
+    else
+      printf "  %-12s  %s\n" "${user}" "${C_DIM}missing: recipes/${recipe}/secrets/${user}.pwd${C_RESET}"
+    fi
+  done
+
+  if ! $found; then
+    echo
+    log_info "Run './trailmq quickstart' to generate local evaluation passwords."
+  fi
+}
+
 # --- Recipe helpers ---
 
 require_active_recipe() {
   if [ ! -f "${ACTIVE_RECIPE_FILE}" ]; then
-    log_err "No active recipe. Run './trailmq launch' first."
+    log_err "No active recipe. Run './trailmq quickstart' first."
     exit 1
   fi
   ACTIVE_RECIPE="$(cat "${ACTIVE_RECIPE_FILE}")"
@@ -143,10 +202,10 @@ print_access_points() {
   cat <<EOF
 
 ${C_BOLD}Open TrailMQ${C_RESET}
-  Web UI    ${C_CYAN}http://localhost/trailmq/${C_RESET}
-  REST API  ${C_CYAN}http://localhost/api${C_RESET}
-  MQTT TLS  ${C_CYAN}localhost:8883${C_RESET}
-  MQTT WS   ${C_CYAN}ws://localhost/mqtt${C_RESET}
+  Web UI    ${C_CYAN}$(trailmq_http_base_url)/trailmq/${C_RESET}
+  REST API  ${C_CYAN}$(trailmq_http_base_url)/api/v1${C_RESET}
+  MQTT TLS  ${C_CYAN}$(trailmq_mqtt_tls_address)${C_RESET}
+  MQTT WS   ${C_CYAN}$(trailmq_ws_url)${C_RESET}
 
 ${C_DIM}Active recipe: ${ACTIVE_RECIPE}${C_RESET}
 EOF
@@ -160,19 +219,23 @@ ${C_BOLD}Usage${C_RESET}
   ./trailmq <command>
 
 ${C_BOLD}Commands${C_RESET}
-  ${C_GREEN}launch${C_RESET}     Guided setup — pick a Starter Kit and start
-  ${C_GREEN}up${C_RESET}         Start the active recipe
-  ${C_GREEN}down${C_RESET}       Stop the active recipe
-  ${C_GREEN}status${C_RESET}     Show services, ports and audit status
-  ${C_GREEN}logs${C_RESET}       Tail logs for the active recipe
-  ${C_GREEN}doctor${C_RESET}     Check Docker, ports, certs, config
-  ${C_GREEN}certs${C_RESET}      Generate local demo certificates
-  ${C_GREEN}demo${C_RESET}       Run a guided demo (coming soon)
-  ${C_GREEN}reset${C_RESET}      Stop stack and wipe runtime data
-  ${C_GREEN}purge${C_RESET}      Remove stack, runtime data, certs, secrets and active recipe
-  ${C_GREEN}version${C_RESET}    Show version info
+  ${C_GREEN}quickstart${C_RESET}   Guided one-command local evaluation setup
+  ${C_GREEN}start${C_RESET}        Start or repair the local evaluation setup
+  ${C_GREEN}launch${C_RESET}       Guided setup — pick a Starter Kit and start
+  ${C_GREEN}up${C_RESET}           Start the active recipe
+  ${C_GREEN}down${C_RESET}         Stop the active recipe
+  ${C_GREEN}status${C_RESET}       Show services, ports and audit status
+  ${C_GREEN}open${C_RESET}         Show local URLs for the active recipe
+  ${C_GREEN}credentials${C_RESET}  Show generated local evaluation passwords
+  ${C_GREEN}logs${C_RESET}         Tail logs for the active recipe
+  ${C_GREEN}doctor${C_RESET}       Check Docker, ports, certs, config
+  ${C_GREEN}certs${C_RESET}        Generate local demo certificates
+  ${C_GREEN}demo${C_RESET}         Run a guided demo (coming soon)
+  ${C_GREEN}reset${C_RESET}        Stop stack and wipe runtime data
+  ${C_GREEN}purge${C_RESET}        Remove stack, runtime data, certs, secrets and active recipe
+  ${C_GREEN}version${C_RESET}      Show version info
 
 ${C_BOLD}First time here?${C_RESET}
-  ./trailmq launch
+  ./trailmq quickstart
 EOF
 }

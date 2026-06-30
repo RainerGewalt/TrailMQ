@@ -10,7 +10,7 @@ export TRAILMQ_ROOT
 source "${TRAILMQ_ROOT}/scripts/common.sh"
 
 if ! has_active_recipe; then
-  log_err "No active recipe. Run './trailmq launch' first."
+  log_err "No active recipe. Run './trailmq quickstart' first."
   exit 1
 fi
 
@@ -110,9 +110,9 @@ fi
 # --- Open section (access points) ---
 echo
 echo "${C_BOLD}Open${C_RESET}"
-printf "  %-12s %s\n" "Web UI"   "${C_CYAN}http://localhost/trailmq/${C_RESET}"
-printf "  %-12s %s\n" "REST API" "${C_CYAN}http://localhost/api${C_RESET}"
-printf "  %-12s %s\n" "MQTT TLS" "${C_CYAN}localhost:8883${C_RESET}"
-printf "  %-12s %s\n" "MQTT WS"  "${C_CYAN}ws://localhost/mqtt${C_RESET}"
+printf "  %-12s %s\n" "Web UI"   "${C_CYAN}$(trailmq_http_base_url)/trailmq/${C_RESET}"
+printf "  %-12s %s\n" "REST API" "${C_CYAN}$(trailmq_http_base_url)/api/v1${C_RESET}"
+printf "  %-12s %s\n" "MQTT TLS" "${C_CYAN}$(trailmq_mqtt_tls_address)${C_RESET}"
+printf "  %-12s %s\n" "MQTT WS"  "${C_CYAN}$(trailmq_ws_url)${C_RESET}"
 
 echo
