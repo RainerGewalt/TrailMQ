@@ -14,6 +14,14 @@ cmd="${1:-menu}"
 shift || true
 
 case "$cmd" in
+  quickstart|try)
+    exec "${TRAILMQ_ROOT}/scripts/launch.sh" --quickstart "$@"
+    ;;
+
+  start)
+    exec "${TRAILMQ_ROOT}/scripts/launch.sh" --quickstart "$@"
+    ;;
+
   launch)
     exec "${TRAILMQ_ROOT}/scripts/launch.sh" "$@"
     ;;
@@ -25,6 +33,16 @@ case "$cmd" in
     compose_cmd up -d
     log_ok "Stack is up."
     print_access_points
+    ;;
+
+  open)
+    require_active_recipe
+    print_access_points
+    ;;
+
+  credentials|creds|login)
+    require_active_recipe
+    print_evaluation_credentials "${ACTIVE_RECIPE}"
     ;;
 
   down)
@@ -55,8 +73,8 @@ case "$cmd" in
 
   demo)
     log_warn "Guided demos are coming soon."
-    log_info "For now, start the stack with './trailmq launch' and open:"
-    log_info "  http://localhost/trailmq/"
+    log_info "For now, start the stack with './trailmq quickstart' and open:"
+    log_info "  $(trailmq_http_base_url)/trailmq/"
     exit 0
     ;;
 
@@ -140,7 +158,7 @@ case "$cmd" in
     rm -f "${ACTIVE_RECIPE_FILE}"
 
     log_ok "TrailMQ recipe runtime purged."
-    log_info "Run './trailmq launch' to create a fresh setup."
+    log_info "Run './trailmq quickstart' to create a fresh setup."
     ;;
 
   version|--version|-v)
