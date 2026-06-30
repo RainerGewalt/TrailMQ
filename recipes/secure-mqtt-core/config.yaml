@@ -1,3 +1,19 @@
+# TrailMQ — Secure MQTT Core configuration
+#
+# This is the single configuration file for the recipe. It is mounted
+# read-only into the backend container (see docker-compose.yaml).
+# Paths are relative to this file (recipes/secure-mqtt-core/).
+#
+# Common edits:
+#   users / roles         → "users:" and "roles:" below
+#   queue behavior        → "queue_advanced:"
+#   audit retention       → "audit_advanced:" and "audit_retention_days:"
+#   browser/API origins   → "cors:" and "mqtt_ws_allowed_origins:"
+#   log verbosity         → "log_level:"
+#
+# Host ports and image tags are NOT set here — use the root .env file
+# (see .env.example). Credential examples live in docs/config-examples/users.yaml.
+
 tls:
   server_cert: ./certs/server_cert.pem
   server_key: ./certs/server_key.pem
@@ -23,13 +39,12 @@ mqtt_ws_port: 9001
 mqtt_ws_use_tls: false
 mqtt_wss_port: 9443
 mqtt_ws_path: "/mqtt"
+# Browser origins allowed to open the MQTT WebSocket.
+# Add your own host/port here if you serve the Web UI from somewhere else.
 mqtt_ws_allowed_origins:
-  - "http://localhost:8888"
-  - "http://[::1]:8888"
-  - "http://nginx"
-  - "http://192.168.189.29:8888"
-  - "http://localhost"
-  - "http://localhost:80"
+  - "http://localhost"        # default HTTP port (80)
+  - "http://localhost:8080"   # matches the TRAILMQ_HTTP_PORT=8080 example
+  - "http://nginx"            # internal reverse proxy
 mqtt_ws_max_connections: 1000
 mqtt_ws_ping_interval: 60
 mqtt_ws_read_limit: 1048576  # 1MB
@@ -115,14 +130,15 @@ endpoint_rate_limits: []
 anonymous_access: false
 default_role: ""
 
+# Cross-origin access to the REST API.
+# Add your own host/port here if you call the API from another origin.
 cors:
   allowed_origins:
-    - http://nginx
-    - http://localhost:8888
-    - http://localhost:5173
-    - http://localhost:3000
-    - http://192.168.189.29:8888
-    - http://localhost
+    - http://localhost          # default HTTP port (80)
+    - http://localhost:8080     # matches the TRAILMQ_HTTP_PORT=8080 example
+    - http://nginx              # internal reverse proxy
+    - http://localhost:5173     # local frontend dev server (Vite)
+    - http://localhost:3000     # local frontend dev server
   allowed_methods:
     - GET
     - POST
