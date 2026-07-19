@@ -19,10 +19,14 @@
 git clone https://github.com/RainerGewalt/TrailMQ.git
 cd TrailMQ
 ./trailmq quickstart        # → http://localhost/trailmq/
+./trailmq demo              # 2-minute proof: allowed delivery, denied publish, evidence
 ```
 
-That one command picks the `Secure MQTT Core` stack, generates local demo
+The first command picks the `Secure MQTT Core` stack, generates local demo
 certificates and evaluation passwords, and starts everything with Docker.
+The second runs a scripted proof against the running stack — one allowed
+MQTT delivery, one denied publish, and where to review the recorded
+decisions.
 
 ---
 
@@ -153,24 +157,32 @@ PW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 
 mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$PW" \
-  -t 'demo/line-1/temperature' -m '{"value":21.4,"unit":"degC"}'
+  -t 'public/demo/temperature' -q 1 \
+  -m '{"value":21.4,"unit":"degC"}'
 ```
 
-Newly seen clients appear in the UI under **Integrations** as *detected
-connections* you can adopt (give a governed identity); the connect, the policy
-decision, and the topic activity are all written to the evidence timeline. See
-the [Secure MQTT Core walkthrough](recipes/secure-mqtt-core/README.md) for roles,
-namespaces, and allow/deny examples.
+The `public/#` namespace is open to all authenticated roles out of the box;
+`restricted/#` is admin-only; every other namespace is **deny-by-default**
+until a topic grants roles. The connect and every access decision are
+recorded — open **Evidence** in the Web UI to review them.
+
+Full guide with Python, Node.js and browser-WebSocket examples:
+[Connect a client](docs/connect-a-client.md). Step-by-step walkthroughs
+(allowed flow, denied actions, governing a namespace):
+[Scenarios](docs/scenarios/). REST details: [Secure MQTT Core
+walkthrough](recipes/secure-mqtt-core/README.md).
 
 ---
 
 ## What you can evaluate
 
-- Overview shows runtime status, lifecycle counts, live-topic visibility, and
-  recent activity.
-- Integrations lets you adopt the detected client and inspect its access state.
-- Evidence shows recorded events and replayable proof where the backend recorded
-  enough detail.
+- `./trailmq demo` — a scripted 2-minute proof: allowed delivery, denied
+  publish, recorded evidence.
+- [Scenarios](docs/scenarios/) — three guided walkthroughs: sensor to
+  dashboard, denied by design, governing a namespace.
+- Overview shows runtime status, lifecycle counts, and recent activity.
+- Evidence shows recorded events — every row labeled by how it was captured,
+  filterable by outcome (e.g. **Blocked**).
 
 ---
 
@@ -223,6 +235,7 @@ touch — **contact@trailmq.com** (or [trailmq.com](https://trailmq.com)).
 | Command                 | Purpose                                      |
 | ----------------------- | -------------------------------------------- |
 | `./trailmq quickstart`  | One-command local evaluation setup           |
+| `./trailmq demo`        | 2-minute guided demo (allow + deny + evidence) |
 | `./trailmq start`       | Start or repair the local evaluation setup   |
 | `./trailmq launch`      | Guided first run (pick a starter kit)        |
 | `./trailmq up`          | Start the active recipe                      |
@@ -328,6 +341,8 @@ TrailMQ/
 | Document | Use it for |
 | --- | --- |
 | [Quickstart](docs/quickstart.md) | Minimal first run |
+| [Connect a client](docs/connect-a-client.md) | CLI, Python, Node.js and WebSocket clients; the access model |
+| [Scenarios](docs/scenarios/README.md) | Guided walkthroughs: allow, deny, govern |
 | [Secure MQTT Core](recipes/secure-mqtt-core/README.md) | API walkthrough and recipe details |
 | [Architecture](docs/architecture.md) | Product model and audit-chain concept |
 | [Plugins](docs/plugins.md) | Planned extension model |

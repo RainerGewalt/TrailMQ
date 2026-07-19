@@ -72,10 +72,7 @@ case "$cmd" in
     ;;
 
   demo)
-    log_warn "Guided demos are coming soon."
-    log_info "For now, start the stack with './trailmq quickstart' and open:"
-    log_info "  $(trailmq_http_base_url)/trailmq/"
-    exit 0
+    exec "${TRAILMQ_ROOT}/scripts/demo.sh" "$@"
     ;;
 
   reset)

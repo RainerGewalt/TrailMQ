@@ -229,7 +229,10 @@ configuration.
 | `DELETE` | `/api/v1/topics/by-name/{path}`           | Delete topic by MQTT path                   |
 | `GET`    | `/api/v1/topics/by-name/{path}/effective` | Show effective runtime configuration        |
 
-Example:
+Example — create a governed topic. Note the `accessControl` / `allowedRoles`
+fields: outside the default namespaces (`public/#` open to all roles,
+`restricted/#` admin-only) a namespace is deny-by-default until a topic
+grants roles:
 
 ```bash
 curl -sS -X POST "http://localhost/api/v1/topics" \
@@ -241,7 +244,9 @@ curl -sS -X POST "http://localhost/api/v1/topics" \
     "isActive": true,
     "queueEnabled": true,
     "queueSize": 1000,
-    "auditTrail": true
+    "auditTrail": true,
+    "accessControl": "role",
+    "allowedRoles": ["publisher", "viewer"]
   }' | jq
 ```
 

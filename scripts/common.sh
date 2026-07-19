@@ -230,7 +230,7 @@ ${C_BOLD}Commands${C_RESET}
   ${C_GREEN}logs${C_RESET}         Tail logs for the active recipe
   ${C_GREEN}doctor${C_RESET}       Check Docker, ports, certs, config
   ${C_GREEN}certs${C_RESET}        Generate local demo certificates
-  ${C_GREEN}demo${C_RESET}         Run a guided demo (coming soon)
+  ${C_GREEN}demo${C_RESET}         Run the 2-minute guided demo (allow + deny + evidence)
   ${C_GREEN}reset${C_RESET}        Stop stack and wipe runtime data
   ${C_GREEN}purge${C_RESET}        Remove stack, runtime data, certs, secrets and active recipe
   ${C_GREEN}version${C_RESET}      Show version info

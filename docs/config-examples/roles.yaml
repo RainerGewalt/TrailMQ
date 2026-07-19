@@ -1,0 +1,43 @@
+# TrailMQ role permission examples
+#
+# These examples are documentation only. Roles live in
+# recipes/secure-mqtt-core/config.yaml under "roles:".
+#
+# Permission format: "<action>:<mqtt-topic-filter>"
+#   action        "publish" or "subscribe"
+#   topic filter  MQTT-style pattern; "*" and "#" both mean "all topics"
+#   bare "*"      grants everything (admin)
+#
+# Remember: a role permission alone does not open a namespace. The broker
+# also checks the topic/namespace ACL — "public/#" is open to all known
+# roles, "restricted/#" is admin-only, and every other namespace is
+# deny-by-default until a topic grants roles via accessControl/allowedRoles
+# (Web UI or POST /api/v1/topics).
+
+# Full administrator:
+#
+# - id: 1
+#   name: admin
+#   description: "Administrator role"
+#   permissions: ["*"]
+
+# May publish anywhere the namespace ACL allows, but never subscribe:
+#
+# - id: 2
+#   name: publisher
+#   description: "Can publish messages"
+#   permissions: ["publish:*"]
+
+# Read-only:
+#
+# - id: 3
+#   name: viewer
+#   description: "Read-only user"
+#   permissions: ["subscribe:*"]
+
+# Scoped to specific topic filters (MQTT wildcards):
+#
+# - id: 5
+#   name: line1-gateway
+#   description: "Line 1 edge gateway — telemetry out, commands in"
+#   permissions: ["publish:factory/line-1/#", "subscribe:factory/line-1/commands/+"]

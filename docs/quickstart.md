@@ -16,6 +16,16 @@ images. Done.
 
 Open **http://localhost/trailmq/** in your browser.
 
+Then let TrailMQ prove itself:
+
+```bash
+./trailmq demo
+```
+
+Two minutes: one allowed MQTT delivery, one denied publish, and where the
+recorded evidence lives. Continue with the [scenarios](scenarios/) or
+[connect your own client](connect-a-client.md).
+
 ## What just happened
 
 `./trailmq quickstart` did five things:
