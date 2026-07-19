@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="TrailMQ">
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="#0e6e5b"/>
+  <path d="M30 82 L54 56 L72 72 L100 40" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="100" cy="40" r="7.5" fill="#ffffff"/>
+</svg>
