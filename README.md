@@ -1,6 +1,4 @@
-<p align="center"><img src="docs/media/trailmq-mark.svg" width="76" alt="TrailMQ" /></p>
-
-# TrailMQ
+<p align="center"><img src="docs/media/trailmq-logo.png" width="440" alt="TrailMQ" /></p>
 
 [![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
 [![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
@@ -178,8 +176,9 @@ walkthrough](recipes/secure-mqtt-core/README.md).
 
 - `./trailmq demo` — a scripted 2-minute proof: allowed delivery, denied
   publish, recorded evidence.
-- [Scenarios](docs/scenarios/) — three guided walkthroughs: sensor to
-  dashboard, denied by design, governing a namespace.
+- [Scenarios](docs/scenarios/) — six guided walkthroughs: sensor to
+  dashboard, denied by design, governing a namespace, tamper evidence,
+  adding your own user, queue & dead letters.
 - Overview shows runtime status, lifecycle counts, and recent activity.
 - Evidence shows recorded events — every row labeled by how it was captured,
   filterable by outcome (e.g. **Blocked**).

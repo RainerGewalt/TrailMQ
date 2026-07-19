@@ -173,7 +173,7 @@ ${C_BOLD}What just happened${C_RESET}
   3. Filter ${C_BOLD}Outcome → Blocked${C_RESET} to see the denied publish as a recorded event
 
 ${C_BOLD}Go deeper${C_RESET}
-  docs/scenarios/          three guided walkthroughs (allow, deny, govern)
+  docs/scenarios/          six guided walkthroughs (allow, deny, govern, tamper, users, queues)
   docs/connect-a-client.md connect your own MQTT client
 
 EOF
