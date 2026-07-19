@@ -16,7 +16,7 @@ services:
   # TrailMQ Backend
   # ------------------------------------------------------------
   backend:
-    image: ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:latest}
+    image: ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:3.0.0}
     container_name: trailmq-backend
     restart: unless-stopped
     ports:
@@ -60,7 +60,7 @@ services:
   # TrailMQ Frontend
   # ------------------------------------------------------------
   frontend:
-    image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:latest}
+    image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:3.0.0}
     container_name: trailmq-frontend
     restart: unless-stopped
     expose:

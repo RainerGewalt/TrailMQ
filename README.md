@@ -4,14 +4,16 @@
 
 [![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
 [![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
+[![Release](https://img.shields.io/badge/release-3.0.0-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
 [![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
 [![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#quality-security--compliance-readiness)
 [![Automated tests](https://img.shields.io/badge/tests-750%2B%20automated-0e6e5b)](#quality-security--compliance-readiness)
 
-> **Audit-first MQTT control plane.** TrailMQ runs MQTT traffic through policy
-> enforcement and records a cryptographically chained, reviewable record of
-> every broker decision — who connected, what was published, which policy
-> applied, and whether the evidence is still intact.
+> **Audit-first MQTT control plane.** TrailMQ sits directly in the MQTT message
+> path: it authenticates clients, enforces role/topic and message policies
+> before routing, and writes hash-linked (SHA-256), tamper-evident records of
+> the decisions it takes — who connected, what was published, which policy
+> applied, and whether the recorded evidence is still intact.
 
 ```bash
 git clone https://github.com/RainerGewalt/TrailMQ.git
@@ -26,7 +28,7 @@ certificates and evaluation passwords, and starts everything with Docker.
 
 ## What this repository is
 
-This is the **public, Docker-first evaluation package** for TrailMQ:
+This is the **public, Docker-first evaluation package** for **TrailMQ 3.0.0**:
 
 - a **CLI launcher** (`./trailmq`) that wraps Docker Compose,
 - ready-to-run **recipes** (starter kits) under [`recipes/`](recipes/),
@@ -42,7 +44,7 @@ how policy enforcement plus an audit chain behave in practice.
 ```text
 MQTT message → TrailMQ Core (transport + auth)
             → Policy decision (who / what / how)
-            → Audit evidence  (cryptographically chained record)
+            → Audit evidence  (hash-linked, tamper-evident record)
 ```
 
 See [docs/architecture.md](docs/architecture.md) for the full model.
@@ -266,12 +268,13 @@ Common overrides:
 ```env
 TRAILMQ_HTTP_PORT=8080
 TRAILMQ_MQTT_TLS_PORT=8884
-TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:latest
-TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:latest
+TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:3.0.0
+TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:3.0.0
 ```
 
-Pin `TRAILMQ_BACKEND_IMAGE` and `TRAILMQ_FRONTEND_IMAGE` to immutable release
-tags once the corresponding release images are published.
+The current release is **3.0.0**. The recipe defaults to the `3.0.0` release
+tags; pinning them in `.env` keeps your evaluation reproducible even after
+newer images are published.
 
 Then run:
 
