@@ -164,13 +164,11 @@ namespaces, and allow/deny examples.
 
 ## What you can evaluate
 
-- TLS-secured MQTT access
-- role-based users and permissions
-- controlled topic configuration
-- policy resolution and validation
-- queue and dead-letter review
-- audit records and audit-chain validation
-- evidence-oriented exports and product read models
+- Overview shows runtime status, lifecycle counts, live-topic visibility, and
+  recent activity.
+- Integrations lets you adopt the detected client and inspect its access state.
+- Evidence shows recorded events and replayable proof where the backend recorded
+  enough detail.
 
 ---
 
@@ -238,7 +236,7 @@ touch — **contact@trailmq.com** (or [trailmq.com](https://trailmq.com)).
 
 ---
 
-## Starter kits
+## Starter Kits
 
 A recipe bundles a specific combination of features into a ready-to-run stack.
 You don't "configure TrailMQ" from scratch — you pick a recipe that matches
@@ -254,7 +252,56 @@ The available stack is [`recipes/secure-mqtt-core/`](recipes/secure-mqtt-core/).
 
 ---
 
-## Repository map
+## Configuration
+
+Copy `.env.example` to `.env` when you need to pin images or avoid local port
+conflicts:
+
+```bash
+cp .env.example .env
+```
+
+Common overrides:
+
+```env
+TRAILMQ_HTTP_PORT=8080
+TRAILMQ_MQTT_TLS_PORT=8884
+TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:latest
+TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:latest
+```
+
+Pin `TRAILMQ_BACKEND_IMAGE` and `TRAILMQ_FRONTEND_IMAGE` to immutable release
+tags once the corresponding release images are published.
+
+Then run:
+
+```bash
+./trailmq start
+```
+
+## Verification And Release Evidence
+
+The source project defines automated gates for backend Go tests, frontend
+type/unit/build checks, Preview bundle verification, Docker image builds,
+security scanning, SBOM/provenance, checksums, and cosign signing.
+
+Treat exact test counts, workflow URLs, image digests, SBOMs, attestations, and
+signatures as evidence for the specific release tag being evaluated. Do not
+treat screenshots, demo records, or local generated data as production evidence.
+
+## CRA And GMP/GxP Boundary
+
+TrailMQ can support security, traceability, evidence review, release identity,
+SBOM/provenance, and operational documentation activities that are relevant to
+CRA-readiness and regulated environments.
+
+TrailMQ is not a CRA conformity declaration, CE marking, GMP/GxP/CSV validation,
+EU GMP Annex 11 compliance package, or 21 CFR Part 11 compliance package by
+itself. Validation, intended-use assessment, procedural controls, risk
+management, and legal/regulatory determinations remain the deployer's
+responsibility.
+
+## Repository Map
 
 ```text
 TrailMQ/
@@ -276,7 +323,7 @@ TrailMQ/
 ## Documentation
 
 | Document | Use it for |
-| -------- | ---------- |
+| --- | --- |
 | [Quickstart](docs/quickstart.md) | Minimal first run |
 | [Secure MQTT Core](recipes/secure-mqtt-core/README.md) | API walkthrough and recipe details |
 | [Architecture](docs/architecture.md) | Product model and audit-chain concept |
