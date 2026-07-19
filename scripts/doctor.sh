@@ -128,6 +128,19 @@ if [ -f "${recipe_dir}/config.yaml" ]; then
   fi
 fi
 
+# --- 5d. Password policy ---
+# The backend rejects passwords without a special character and then
+# restarts in a loop. Older launcher versions generated purely
+# alphanumeric passwords, so upgraded setups can hit this.
+for user in testadmin testuser; do
+  pwd_file="${recipe_dir}/secrets/${user}.pwd"
+  if [ -s "${pwd_file}" ] && ! grep -q '[^A-Za-z0-9]' "${pwd_file}"; then
+    log_err "Password policy        (${user}.pwd has no special character — backend will not start)"
+    log_info "  Fix: delete recipes/${ACTIVE_RECIPE}/secrets/${user}.pwd and re-run './trailmq start'"
+    problems=$((problems + 1))
+  fi
+done
+
 # --- 6. LICENSE file ---
 if [ -f "${TRAILMQ_ROOT}/LICENSE" ]; then
   log_ok "LICENSE file           ${C_DIM}(repo root)${C_RESET}"

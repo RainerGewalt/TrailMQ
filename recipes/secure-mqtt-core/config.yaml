@@ -56,6 +56,16 @@ db_path: ./data/mqtrail.db
 
 jwtsecret_file: ./secrets/jwtsecret.txt
 
+# Role permissions use the form "<action>:<mqtt-topic-filter>" where
+# <action> is "publish" or "subscribe" and the filter is an MQTT-style
+# pattern ("*" and "#" both mean all topics, e.g. "publish:demo/#").
+# A bare "*" grants everything (admin).
+#
+# Note: a role permission alone is not enough to reach a topic. The
+# broker ALSO checks the topic/namespace ACL: "public/#" is open to all
+# known roles, "restricted/#" is admin-only, and every other namespace
+# is deny-by-default until a topic grants roles via its
+# accessControl/allowedRoles settings (REST or Web UI).
 roles:
   - id: 1
     name: admin

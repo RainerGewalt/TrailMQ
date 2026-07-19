@@ -64,7 +64,7 @@ services:
     container_name: trailmq-frontend
     restart: unless-stopped
     expose:
-      - "80"
+      - "8080"          # 3.x image serves on 8080 (non-root nginx)
     depends_on:
       - backend
     networks:
