@@ -231,10 +231,17 @@ print_evaluation_credentials "${recipe}"
 
 cat <<EOF
 
-${C_BOLD}Next steps${C_RESET}
-  1. Open ${C_CYAN}$(trailmq_http_base_url)/trailmq/${C_RESET} in your browser
-  2. Log in as ${C_BOLD}testadmin${C_RESET}
-  3. Run ${C_GREEN}./trailmq status${C_RESET} to see service health
-  4. Run ${C_GREEN}./trailmq credentials${C_RESET} if you need the login again
+${C_BOLD}Next step — prove it actually works${C_RESET}
+
+  ${C_GREEN}./trailmq verify${C_RESET}
+
+  ${C_DIM}Runs 7 checks in ~30 seconds: an authorized publish is delivered, an
+  unauthorized one is blocked, the denial is recorded, the audit chain
+  validates. That is the difference to a plain MQTT broker.${C_RESET}
+
+${C_BOLD}Then${C_RESET}
+  Open ${C_CYAN}$(trailmq_http_base_url)/trailmq/${C_RESET} and log in as ${C_BOLD}testadmin${C_RESET}
+  ${C_DIM}docs/scenarios/  eight guided walkthroughs, starting with
+                   "Why not just use a broker?"${C_RESET}
 
 EOF
