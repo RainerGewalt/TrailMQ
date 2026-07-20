@@ -213,7 +213,7 @@ EOF
 
 print_menu() {
   cat <<EOF
-${C_BOLD}TrailMQ${C_RESET} — audit-first MQTT control plane
+${C_BOLD}TrailMQ${C_RESET} — an MQTT broker that decides, enforces and records
 
 ${C_BOLD}Usage${C_RESET}
   ./trailmq <command>
