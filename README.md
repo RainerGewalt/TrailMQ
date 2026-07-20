@@ -7,24 +7,48 @@
 [![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#quality-security--compliance-readiness)
 [![Automated tests](https://img.shields.io/badge/tests-750%2B%20automated-0e6e5b)](#quality-security--compliance-readiness)
 
-> **Audit-first MQTT control plane.** TrailMQ sits directly in the MQTT message
-> path: it authenticates clients, enforces role/topic and message policies
-> before routing, and writes hash-linked (SHA-256), tamper-evident records of
-> the decisions it takes — who connected, what was published, which policy
-> applied, and whether the recorded evidence is still intact.
+# See an allowed and a blocked MQTT decision on your machine in five minutes
+
+**TrailMQ is a self-hosted MQTT broker that decides, enforces and records.**
+Clients connect to it directly — no proxy, no sidecar. It authenticates them,
+checks whether they may publish or subscribe where they are asking to, and
+keeps a hash-linked record of what it decided, so you can answer "who did
+what, and was it allowed?" months later.
 
 ```bash
 git clone https://github.com/RainerGewalt/TrailMQ.git
 cd TrailMQ
-./trailmq quickstart        # → http://localhost/trailmq/
-./trailmq demo              # 2-minute proof: allowed delivery, denied publish, evidence
+./trailmq quickstart     # sets everything up and starts it
+./trailmq verify         # proves it works — 7 checks, ~30 seconds
 ```
 
-The first command picks the `Secure MQTT Core` stack, generates local demo
-certificates and evaluation passwords, and starts everything with Docker.
-The second runs a scripted proof against the running stack — one allowed
-MQTT delivery, one denied publish, and where to review the recorded
-decisions.
+`verify` is the point of this repository. It doesn't just check that
+containers are running:
+
+```text
+[PASS] Runtime ready
+[PASS] MQTT TLS listener accepts authenticated clients
+[PASS] Authorized publish reached the subscriber   public/demo/temperature
+[PASS] Unauthorized publish was blocked            restricted/ops/config
+[PASS] Denial recorded with user, role, action and topic
+       DENY user="testuser" roles=[publisher] action=publish topic="restricted/ops/config"
+[PASS] REST API authentication issues a token
+[PASS] System/action audit chain intact          307 entries hash-checked
+
+7/7 checks passed
+```
+
+A plain broker would have accepted or silently dropped both of those
+messages. That difference is the product.
+
+### Then what?
+
+| I want to… | Go to |
+| ---------- | ----- |
+| understand why this isn't just a broker | [Scenario 0 — the side-by-side comparison](docs/scenarios/00-why-not-just-a-broker.md) |
+| connect my own client | [Connect a client](docs/connect-a-client.md) |
+| work through real situations | [Scenarios](docs/scenarios/) — 8 guided walkthroughs |
+| see it in a browser | `http://localhost/trailmq/` (login: `./trailmq credentials`) |
 
 ---
 
@@ -174,14 +198,19 @@ walkthrough](recipes/secure-mqtt-core/README.md).
 
 ## What you can evaluate
 
-- `./trailmq demo` — a scripted 2-minute proof: allowed delivery, denied
-  publish, recorded evidence.
-- [Scenarios](docs/scenarios/) — six guided walkthroughs: sensor to
-  dashboard, denied by design, governing a namespace, tamper evidence,
-  adding your own user, queue & dead letters.
-- Overview shows runtime status, lifecycle counts, and recent activity.
-- Evidence shows recorded events — every row labeled by how it was captured,
-  filterable by outcome (e.g. **Blocked**).
+- `./trailmq verify` — the scripted proof: allowed delivery, blocked publish,
+  recorded decision, intact audit chain.
+- [Scenarios](docs/scenarios/) — eight guided walkthroughs, each answering one
+  concrete question. Highlights:
+  - [Why not just use a broker?](docs/scenarios/00-why-not-just-a-broker.md) —
+    the same commands against a standard broker and against TrailMQ.
+  - [When "success" isn't delivery](docs/scenarios/07-message-policy-qos.md) —
+    a publish that reports success and still never arrives, plus the recorded
+    reason why.
+  - [Tamper evidence](docs/scenarios/04-tamper-evidence.md) — edit the audit
+    history behind TrailMQ's back and watch the chain check catch it.
+- In the Web UI: **Evidence** shows recorded events, every row labeled by how
+  it was captured and filterable by outcome (e.g. **Blocked**).
 
 ---
 
@@ -231,38 +260,53 @@ touch — **contact@trailmq.com** (or [trailmq.com](https://trailmq.com)).
 ./trailmq            # prints the command menu
 ```
 
+**The four you actually need:**
+
+| Command                 | Purpose                                             |
+| ----------------------- | --------------------------------------------------- |
+| `./trailmq quickstart`  | Set up and start the local evaluation stack         |
+| `./trailmq verify`      | Prove it: allowed delivery, blocked publish, chain  |
+| `./trailmq open`        | Show the local URLs                                 |
+| `./trailmq reset`       | Stop the stack and wipe runtime data                |
+
+<details>
+<summary><b>Advanced commands</b></summary>
+
 | Command                 | Purpose                                      |
 | ----------------------- | -------------------------------------------- |
-| `./trailmq quickstart`  | One-command local evaluation setup           |
-| `./trailmq demo`        | 2-minute guided demo (allow + deny + evidence) |
-| `./trailmq start`       | Start or repair the local evaluation setup   |
+| `./trailmq start`       | Start or repair the setup (same as quickstart) |
 | `./trailmq launch`      | Guided first run (pick a starter kit)        |
 | `./trailmq up`          | Start the active recipe                      |
 | `./trailmq down`        | Stop the active recipe                       |
 | `./trailmq status`      | Show services, ports, audit state, plugins   |
-| `./trailmq open`        | Show local URLs for the active recipe        |
 | `./trailmq credentials` | Show generated local evaluation login        |
 | `./trailmq logs`        | Tail logs for the active recipe              |
 | `./trailmq doctor`      | Check Docker, config, certs, secrets, ports  |
 | `./trailmq certs`       | Generate local demo certificates             |
-| `./trailmq reset`       | Stop stack and wipe runtime data             |
 | `./trailmq purge`       | Remove runtime data, certs, secrets, state   |
+
+</details>
 
 ---
 
 ## Starter Kits
 
 A recipe bundles a specific combination of features into a ready-to-run stack.
-You don't "configure TrailMQ" from scratch — you pick a recipe that matches
-your goal. They live under [`recipes/`](recipes/).
+They live under [`recipes/`](recipes/).
 
-| Starter kit            | Status    | Purpose                                          |
-| ---------------------- | --------- | ------------------------------------------------ |
-| Secure MQTT Core       | Available | Policy enforcement, audit trail, evidence chain  |
-| Explain Decisions      | Planned   | Decision traces for broker decisions             |
-| Live vs Historical KPI | Planned   | Compare live MQTT values with historical context |
+**Current evaluation:** [`Secure MQTT Core`](recipes/secure-mqtt-core/) —
+policy enforcement, audit trail, evidence chain. This is what `quickstart`
+sets up, and it is the only recipe you need today.
 
-The available stack is [`recipes/secure-mqtt-core/`](recipes/secure-mqtt-core/).
+<details>
+<summary><b>Roadmap</b> — not available yet</summary>
+
+| Starter kit            | Purpose                                          |
+| ---------------------- | ------------------------------------------------ |
+| Explain Decisions      | Decision traces for broker decisions             |
+| Live vs Historical KPI | Compare live MQTT values with historical context |
+
+</details>
 
 ---
 

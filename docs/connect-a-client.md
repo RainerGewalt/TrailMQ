@@ -189,7 +189,7 @@ is labeled with how it was captured.
 
 ## Next steps
 
-- Run the guided demo: `./trailmq demo`
+- Run the proof: `./trailmq verify`
 - Walk through the [scenarios](scenarios/) — allowed flow, denied actions,
   and creating a governed namespace
 - Explore the REST API: [Secure MQTT Core walkthrough](../recipes/secure-mqtt-core/README.md)

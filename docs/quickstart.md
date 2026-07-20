@@ -19,12 +19,17 @@ Open **http://localhost/trailmq/** in your browser.
 Then let TrailMQ prove itself:
 
 ```bash
-./trailmq demo
+./trailmq verify
 ```
 
-Two minutes: one allowed MQTT delivery, one denied publish, and where the
-recorded evidence lives. Continue with the [scenarios](scenarios/) or
-[connect your own client](connect-a-client.md).
+Seven checks in about 30 seconds: an authorized publish is delivered, an
+unauthorized one is blocked, the denial is recorded with user and role, and
+the audit chain still validates. Exits non-zero if anything fails, so you can
+use it as a smoke test.
+
+Next: [why this isn't just a broker](scenarios/00-why-not-just-a-broker.md),
+the [scenarios](scenarios/), or [connect your own
+client](connect-a-client.md).
 
 ## What just happened
 

@@ -218,24 +218,25 @@ ${C_BOLD}TrailMQ${C_RESET} — audit-first MQTT control plane
 ${C_BOLD}Usage${C_RESET}
   ./trailmq <command>
 
-${C_BOLD}Commands${C_RESET}
-  ${C_GREEN}quickstart${C_RESET}   Guided one-command local evaluation setup
-  ${C_GREEN}start${C_RESET}        Start or repair the local evaluation setup
-  ${C_GREEN}launch${C_RESET}       Guided setup — pick a Starter Kit and start
-  ${C_GREEN}up${C_RESET}           Start the active recipe
-  ${C_GREEN}down${C_RESET}         Stop the active recipe
-  ${C_GREEN}status${C_RESET}       Show services, ports and audit status
-  ${C_GREEN}open${C_RESET}         Show local URLs for the active recipe
-  ${C_GREEN}credentials${C_RESET}  Show generated local evaluation passwords
-  ${C_GREEN}logs${C_RESET}         Tail logs for the active recipe
-  ${C_GREEN}doctor${C_RESET}       Check Docker, ports, certs, config
-  ${C_GREEN}certs${C_RESET}        Generate local demo certificates
-  ${C_GREEN}demo${C_RESET}         Run the 2-minute guided demo (allow + deny + evidence)
-  ${C_GREEN}reset${C_RESET}        Stop stack and wipe runtime data
-  ${C_GREEN}purge${C_RESET}        Remove stack, runtime data, certs, secrets and active recipe
-  ${C_GREEN}version${C_RESET}      Show version info
+${C_BOLD}Start here${C_RESET}
+  ${C_GREEN}quickstart${C_RESET}   Set up and start the local evaluation stack
+  ${C_GREEN}verify${C_RESET}       Prove it: allowed delivery, blocked publish, audit chain
+  ${C_GREEN}open${C_RESET}         Show the local URLs
+  ${C_GREEN}reset${C_RESET}        Stop the stack and wipe runtime data
+
+${C_BOLD}Advanced${C_RESET}
+  ${C_DIM}start${C_RESET}        Start or repair the setup (same as quickstart)
+  ${C_DIM}launch${C_RESET}       Guided setup — pick a Starter Kit
+  ${C_DIM}up / down${C_RESET}    Start / stop the active recipe
+  ${C_DIM}status${C_RESET}       Show services, ports and audit status
+  ${C_DIM}credentials${C_RESET}  Show the generated evaluation passwords
+  ${C_DIM}logs${C_RESET}         Tail logs for the active recipe
+  ${C_DIM}doctor${C_RESET}       Check Docker, ports, certs, config
+  ${C_DIM}certs${C_RESET}        Generate local demo certificates
+  ${C_DIM}purge${C_RESET}        Remove everything generated for the recipe
+  ${C_DIM}version${C_RESET}      Show version info
 
 ${C_BOLD}First time here?${C_RESET}
-  ./trailmq quickstart
+  ./trailmq quickstart && ./trailmq verify
 EOF
 }

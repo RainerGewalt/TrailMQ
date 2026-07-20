@@ -71,8 +71,8 @@ case "$cmd" in
     exec "${TRAILMQ_ROOT}/scripts/certs.sh" "$@"
     ;;
 
-  demo)
-    exec "${TRAILMQ_ROOT}/scripts/demo.sh" "$@"
+  verify|proof|demo)
+    exec "${TRAILMQ_ROOT}/scripts/verify.sh" "$@"
     ;;
 
   reset)
