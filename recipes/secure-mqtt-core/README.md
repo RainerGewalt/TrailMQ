@@ -1,245 +1,162 @@
 # Secure MQTT Core
 
-The baseline TrailMQ stack. Use this recipe when you want:
+`secure-mqtt-core` is the runnable TrailMQ 3.0.0 evaluation recipe. It combines
+standard MQTT transport, two-stage authorization, queue/policy controls, a
+review-oriented UI, and a hash-linked system/action audit record.
 
-- TLS-secured MQTT broker
-- REST API for control and audit retrieval
-- Web UI via reverse proxy
-- Cryptographic audit chain
-- Policy-based access control
+Use it to answer four practical questions:
 
-Nothing more. This is the foundation every other recipe builds on.
+1. Can existing MQTT clients connect without a TrailMQ-specific SDK?
+2. Are unauthorized actions blocked at the broker boundary?
+3. Can an operator inspect the effective rule and recorded outcome?
+4. Does the system/action evidence chain reveal later changes?
 
-Fastest local start from the repository root:
+## Start from the repository root
 
 ```bash
 ./trailmq quickstart
+./trailmq verify
 ```
 
-## What's in the stack
+The launcher creates local certificates and evaluation credentials, starts the
+stack, and prints its access points. `verify` then runs the canonical
+allow/deny/evidence proof.
 
-| Service  | Image                           | Purpose                         |
-| -------- | ------------------------------- | ------------------------------- |
-| backend  | `rainergewalt/trailmq-backend`  | MQTT broker + REST API + audit  |
-| frontend | `rainergewalt/trailmq-frontend` | Web UI                          |
-| nginx    | `nginx:stable-alpine`           | Reverse proxy + TLS termination |
+## Stack and endpoints
 
-## Exposed ports
+| Service | Default image | Responsibility |
+| --- | --- | --- |
+| backend | `rainergewalt/trailmq-backend:3.0.0` | MQTT, REST API, policy enforcement, persistence, audit |
+| frontend | `rainergewalt/trailmq-frontend:3.0.0` | Evaluation Preview |
+| nginx | `nginx:stable-alpine` | Local reverse proxy |
 
-| Default host port | Purpose        | Override                |
-| ----------------- | -------------- | ----------------------- |
-| 80                | HTTP / Web UI  | `TRAILMQ_HTTP_PORT`     |
-| 8883              | MQTT over TLS  | `TRAILMQ_MQTT_TLS_PORT` |
+| Surface | Default address | Override |
+| --- | --- | --- |
+| Web UI | `http://localhost/trailmq/` | `TRAILMQ_HTTP_PORT` |
+| REST API | `http://localhost/api/v1` | `TRAILMQ_HTTP_PORT` |
+| MQTT over TLS | `mqtts://localhost:8883` | `TRAILMQ_MQTT_TLS_PORT` |
+| MQTT WebSocket | `ws://localhost/mqtt` | `TRAILMQ_HTTP_PORT` |
 
-The backend REST API runs inside the stack on port `8443`. Public access goes
-through the reverse proxy on port `80`.
+The backend's REST and WebSocket ports are internal to the Compose network;
+nginx exposes the public local routes shown above.
 
-Default local URLs:
+## Configuration and state
 
-| Surface  | URL                         |
-| -------- | --------------------------- |
-| Web UI   | `http://localhost/trailmq/` |
-| REST API | `http://localhost/api/v1`   |
-| MQTT TLS | `localhost:8883`            |
-| MQTT WS  | `ws://localhost/mqtt`       |
+| Path | What it controls |
+| --- | --- |
+| root `.env` | host ports and Docker image overrides |
+| `config.yaml` | TLS, roles, configured users, origins, queue, and audit settings |
+| `certs/` | local CA and server certificate |
+| `secrets/` | JWT secret and evaluation password files |
+| `data/` | persisted runtime state |
+| `logs/` | backend logs |
+| `audit-archive/` | archived audit material |
 
-If a default port is already in use, copy `.env.example` to `.env`, set
-different host ports, and restart the recipe:
+Generated directories are gitignored. The launcher mounts `config.yaml`,
+certificates, and secrets read-only into the backend container.
+
+To change ports or pin images:
+
+```bash
+cp .env.example .env
+```
 
 ```env
 TRAILMQ_HTTP_PORT=8080
 TRAILMQ_MQTT_TLS_PORT=8884
+TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:3.0.0
+TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:3.0.0
 ```
 
-With that override, the Web UI is available at
-`http://localhost:8080/trailmq/` and the REST API at
-`http://localhost:8080/api/v1`.
+Restart with `./trailmq down` followed by `./trailmq start`.
 
-## First-run requirements
+## Evaluation identities
 
-The `certs/` folder must contain:
-
-- `server_cert.pem`
-- `server_key.pem`
-- `ca_cert.pem`
-
-`./trailmq quickstart` generates local demo certificates automatically.
-`./trailmq launch` offers the same setup through a guided menu,
-or you can run `./trailmq certs` at any time.
-
-The launcher also generates:
-
-- a JWT secret in `secrets/jwtsecret.txt`
-- evaluation passwords in `secrets/testadmin.pwd` and `secrets/testuser.pwd`
-
-## Evaluation license
-
-This recipe is part of the TrailMQ public evaluation distribution. It is free
-for personal learning, local experimentation, non-production technical
-evaluation, and demos. Production use, commercial use, managed hosting, or
-redistribution require a separate commercial agreement.
-
-See [`LICENSE`](../../LICENSE) for the exact terms.
-
-## Evaluation users
-
-Two evaluation users ship with this recipe. **They are for local evaluation
-only — change or disable them before any non-local deployment.**
-
-| User        | Role        | Credential source                                  |
-| ----------- | ----------- | -------------------------------------------------- |
-| `testadmin` | admin       | `secrets/testadmin.pwd` *(generated by launcher)* |
-| `testuser`  | publisher   | `secrets/testuser.pwd` *(generated by launcher)*  |
-
-On first run, the launcher generates random passwords into those files and
-prints them to stdout. Re-run `./trailmq credentials` from the repository root
-if you lose track of them. To rotate: delete the files and re-launch.
-
-## Credential examples
-
-The active `config.yaml` intentionally contains only `testadmin` and
-`testuser`. Do not keep disabled demo users with missing `password_file`
-entries in the active config, because the backend validates password files
-while loading the configuration.
-
-Examples for `password_file`, `password_hash`, and placeholder plain-password
-users live in:
-
-```text
-docs/config-examples/users.yaml
-```
-
-Copy an example into `config.yaml` only after setting real credentials.
-
----
-
-## REST API Quickstart
-
-TrailMQ provides a REST API for controlling and reviewing MQTT behavior.
-
-The Web UI uses the same API, so the most important product functions can also
-be accessed from scripts, local checks, monitoring tools or external
-integrations.
-
-Use the API to answer questions like:
-
-- Which MQTT topics are controlled?
-- Which settings apply to a topic?
-- Which policy applies to a message path?
-- What is currently queued or dead-lettered?
-- What was recorded in the audit trail?
-- Is the audit chain still valid?
-- Which evidence-oriented records can be exported for review?
-
-Default local API endpoint:
-
-```text
-http://localhost/api/v1
-```
-
----
-
-## Authentication
-
-The local evaluation setup uses configured users, not open self-registration.
-
-Read the generated admin password:
+| User | Role | Intended use |
+| --- | --- | --- |
+| `testadmin` | `admin` | Preview login, REST control, subscriber |
+| `testuser` | `publisher` | MQTT publisher |
 
 ```bash
-cd recipes/secure-mqtt-core
-
-ADMIN_USER="testadmin"
-ADMIN_PASS="$(cat secrets/testadmin.pwd)"
+./trailmq credentials
 ```
 
-Login and receive a JWT:
+The launcher generates the password files once and leaves them in `secrets/`.
+They are for local evaluation only.
+
+### Important merge behavior
+
+The recipe uses `authsyncmode: "merge"`. Configured users are merged into the
+runtime database at backend startup. Removing a user from `config.yaml` or
+deleting a password file does **not** revoke an identity already persisted in
+that database.
+
+Use [Access management](../../docs/access-management.md) to add, rotate, or
+safely delete an evaluation user.
+
+## REST API authentication
+
+Most control and review endpoints require an admin token. From the repository
+root:
 
 ```bash
-TOKEN="$(
-  curl -sS -X POST "http://localhost/api/v1/auth" \
-    -H "Content-Type: application/json" \
-    -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" \
-  | jq -r '.token // .accessToken // .data.token // .data.accessToken'
-)"
+ADMIN_PW=$(cat recipes/secure-mqtt-core/secrets/testadmin.pwd)
+
+TOKEN=$(
+  curl -sS -X POST http://localhost/api/v1/auth \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"testadmin\",\"password\":\"${ADMIN_PW}\"}" \
+  | jq -r '.token'
+)
+
+curl -sS http://localhost/api/v1/auth/me \
+  -H "Authorization: Bearer ${TOKEN}" | jq
 ```
 
-Check the authenticated user:
+If `TOKEN` is empty or `null`, check `./trailmq credentials`, then run
+`./trailmq doctor` and `./trailmq logs backend`.
 
-```bash
-curl -sS "http://localhost/api/v1/auth/me" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-```
+## Documented evaluation API
 
-Most control and review endpoints require:
+The table below intentionally focuses on endpoints exercised by the public
+launcher and guided scenarios. It is a task-oriented evaluation surface, not a
+claim that every internal or future read model is present in every image.
 
-```http
-Authorization: Bearer <token>
-```
+### Runtime checks
 
----
-
-## Public Runtime Checks
-
-Use these endpoints for basic smoke tests, Docker health checks, monitoring and
-local readiness checks.
-
-| Method | Endpoint                  | What it tells you                         |
-| ------ | ------------------------- | ----------------------------------------- |
-| `GET`  | `/health`                 | REST service is reachable                 |
-| `GET`  | `/live`                   | Process is alive                          |
-| `GET`  | `/ready`                  | TrailMQ is ready to serve broker/API work |
-| `GET`  | `/api/v1/version`         | Running version/build information         |
-| `GET`  | `/api/v1/metrics`         | JSON metrics                              |
-| `GET`  | `/api/v1/metrics/json`    | JSON metrics                              |
-| `GET`  | `/api/v1/metrics/prometheus` | Prometheus-style metrics               |
-| `GET`  | `/metrics`                | Prometheus-style metrics                  |
-
-Example:
+| Method | Endpoint | Use |
+| --- | --- | --- |
+| `GET` | `/health` | HTTP service is reachable |
+| `GET` | `/live` | process is alive |
+| `GET` | `/ready` | backend is ready for work |
+| `GET` | `/api/v1/version` | running build/version identity |
+| `GET` | `/api/v1/metrics` | evaluation metrics |
+| `GET` | `/metrics` | Prometheus-style metrics |
 
 ```bash
 curl -sS http://localhost/ready | jq
-curl -sS http://localhost/api/v1/metrics | jq
+curl -sS http://localhost/api/v1/version | jq
 ```
 
-Product meaning:
+### Topic governance
 
-> Is TrailMQ running, reachable and ready before MQTT traffic is sent through it?
+| Method | Endpoint | Use |
+| --- | --- | --- |
+| `GET` | `/api/v1/topics` | list governed topics |
+| `POST` | `/api/v1/topics` | create a governed topic |
+| `GET` | `/api/v1/topics/tree` | inspect the topic hierarchy |
+| `GET` | `/api/v1/topics/by-name/{path}` | read a topic by MQTT path |
+| `GET` | `/api/v1/topics/by-name/{path}/effective` | inspect effective settings |
+| `DELETE` | `/api/v1/topics/by-name/{path}` | delete stored topic configuration |
 
----
-
-## Topic Control
-
-Topics are the controlled MQTT namespace in TrailMQ.
-
-Use these endpoints to create, inspect and configure MQTT paths. This includes
-active state, QoS, queue behavior, audit settings and effective runtime
-configuration.
-
-| Method   | Endpoint                                  | Product purpose                             |
-| -------- | ----------------------------------------- | ------------------------------------------- |
-| `GET`    | `/api/v1/topics`                          | List controlled MQTT topics                 |
-| `POST`   | `/api/v1/topics`                          | Create a controlled topic                   |
-| `GET`    | `/api/v1/topics/tree`                     | Inspect the topic hierarchy                 |
-| `POST`   | `/api/v1/topics/tree`                     | Create a topic path with parent chain       |
-| `POST`   | `/api/v1/topics/autocreate`               | Auto-create a topic for local evaluation    |
-| `GET`    | `/api/v1/topics/{topic}/settings`         | Read topic behavior                         |
-| `PUT`    | `/api/v1/topics/{topic}/settings`         | Update queue, QoS, audit or active settings |
-| `GET`    | `/api/v1/topics/by-name/{path}`           | Read topic by MQTT path                     |
-| `DELETE` | `/api/v1/topics/by-name/{path}`           | Delete topic by MQTT path                   |
-| `GET`    | `/api/v1/topics/by-name/{path}/effective` | Show effective runtime configuration        |
-
-Example — create a governed topic. Note the `accessControl` / `allowedRoles`
-fields: outside the default namespaces (`public/#` open to all roles,
-`restricted/#` admin-only) a namespace is deny-by-default until a topic
-grants roles:
+Create a deny-by-default namespace grant:
 
 ```bash
-curl -sS -X POST "http://localhost/api/v1/topics" \
+curl -sS -X POST http://localhost/api/v1/topics \
   -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/json" \
+  -H 'Content-Type: application/json' \
   -d '{
-    "name": "demo/line1/temperature",
+    "name": "factory/line-1/temperature",
     "qosLevel": 1,
     "isActive": true,
     "queueEnabled": true,
@@ -250,366 +167,170 @@ curl -sS -X POST "http://localhost/api/v1/topics" \
   }' | jq
 ```
 
-Check what TrailMQ will effectively apply:
+Then inspect what the backend applies:
 
 ```bash
-curl -sS "http://localhost/api/v1/topics/by-name/demo/line1/temperature/effective" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
+curl -sS \
+  http://localhost/api/v1/topics/by-name/factory/line-1/temperature/effective \
+  -H "Authorization: Bearer ${TOKEN}" | jq '.effective'
 ```
 
-Product meaning:
+Topic creation and deletion both update the broker ACL immediately. An access grant
+removed through `DELETE /api/v1/topics/...` is revoked on the next MQTT action, with no
+restart: a publish that succeeded while the rule was in place is refused straight after
+its deletion. Scenario 3 walks through it, and you can watch it happen on your own
+stack rather than take this on trust.
 
-> Which MQTT paths are controlled, and what behavior applies to messages on
-> this path?
+### Message policies
 
----
+| Method | Endpoint | Use |
+| --- | --- | --- |
+| `GET` / `POST` | `/api/v1/policies` | list or create policies |
+| `DELETE` | `/api/v1/policies/{id}` | remove a policy |
+| `GET` | `/api/v1/policies/violations` | review policy violations |
+| `POST` | `/api/v1/policies/resolve` | resolve the policy for a topic |
+| `GET` / `POST` | `/api/v1/policies/bindings` | list or create topic bindings |
 
-## Topic Rules
+[Scenario 7](../../docs/scenarios/07-message-policy-qos.md) creates a minimum
+QoS policy, binds it to a topic, and proves why client-side success is not the
+same as delivery.
 
-Topic rules help apply behavior to topic patterns instead of configuring every
-topic individually.
+### Queue and dead-letter review
 
-| Method   | Endpoint                            | Product purpose                     |
-| -------- | ----------------------------------- | ----------------------------------- |
-| `GET`    | `/api/v1/topic-rules`               | List topic rules                    |
-| `POST`   | `/api/v1/topic-rules`               | Create a topic rule                 |
-| `GET`    | `/api/v1/topic-rules/{id}`          | Read one topic rule                 |
-| `PUT`    | `/api/v1/topic-rules/{id}`          | Update a topic rule                 |
-| `DELETE` | `/api/v1/topic-rules/{id}`          | Delete a topic rule                 |
-| `GET`    | `/api/v1/topic-rules/validate`      | Validate a topic rule pattern       |
-| `GET`    | `/api/v1/topic-rules/match/{topic}` | Test which rules match a topic      |
-| `POST`   | `/api/v1/topic-rules/apply`         | Apply topic rules                   |
+For topic path parameters, URL-encode `/` as `%2F`.
 
-Product meaning:
+| Method | Endpoint | Use |
+| --- | --- | --- |
+| `GET` | `/api/v1/queue/status` | global queue status |
+| `GET` | `/api/v1/queue/deadletter` | dead-lettered messages |
+| `GET` | `/api/v1/queues/{topic}/stats` | per-topic counters |
+| `POST` | `/api/v1/queues/{topic}/enqueue` | enqueue an evaluation message |
+| `POST` | `/api/v1/queues/{topic}/dispatch` | dispatch to a consumer group |
+| `POST` | `/api/v1/queues/{topic}/ack` | acknowledge processing |
+| `POST` | `/api/v1/queues/{topic}/nack` | reject/retry or dead-letter |
 
-> Which rule affects this topic, and why does the topic behave this way?
+[Scenario 6](../../docs/scenarios/06-queue-and-dead-letters.md) exercises the
+entire enqueue, dispatch, ACK, NACK, and dead-letter path.
 
----
+### System/action audit and decisions
 
-## Policy Control
+| Method | Endpoint | Use |
+| --- | --- | --- |
+| `GET` | `/api/v1/audit` | list exposed system/action audit entries |
+| `GET` | `/api/v1/audit/auth` | authentication audit events (REST sign-ins) |
+| `GET` | `/api/v1/audit/messages` | **MQTT decisions** — allowed operations and refusals |
+| `GET` | `/api/v1/audit/validatechain` | validate the system/action chain |
+| `GET` | `/api/v1/audit/validatechain/details` | the same verdict with its scope |
 
-Policies describe how TrailMQ should treat messages on selected topic paths.
+### Where MQTT decisions live
 
-They can be used to inspect, resolve and validate message behavior before or
-during local evaluation.
-
-| Method   | Endpoint                                | Product purpose                    |
-| -------- | --------------------------------------- | ---------------------------------- |
-| `GET`    | `/api/v1/policies`                      | List policies                      |
-| `POST`   | `/api/v1/policies`                      | Create a policy                    |
-| `GET`    | `/api/v1/policies/{id}`                 | Read a policy                      |
-| `PUT`    | `/api/v1/policies/{id}`                 | Update a policy                    |
-| `DELETE` | `/api/v1/policies/{id}`                 | Delete a policy                    |
-| `GET`    | `/api/v1/policies/stats`                | Inspect policy usage               |
-| `GET`    | `/api/v1/policies/violations`           | Inspect denied or invalid behavior |
-| `POST`   | `/api/v1/policies/resolve`              | Resolve policy for a topic         |
-| `POST`   | `/api/v1/policies/validate`             | Validate a message against policy  |
-| `POST`   | `/api/v1/policies/handshake`            | Generate client policy handshake   |
-| `GET`    | `/api/v1/policies/handshake/{clientId}` | Read client policy handshake       |
-| `GET`    | `/api/v1/policies/bindings`             | List policy-to-topic bindings      |
-| `POST`   | `/api/v1/policies/bindings`             | Bind a policy to a topic pattern   |
-
-Create a policy:
+`/api/v1/audit` carries system and administrative actions. It does **not** carry publish and
+subscribe decisions — those are a separate store, and `/api/v1/audit/messages` is how you
+read them:
 
 ```bash
-curl -sS -X POST "http://localhost/api/v1/policies" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "demo-policy",
-    "description": "Demo policy",
-    "maxPayloadKb": 64,
-    "qosRequired": 1,
-    "onViolation": "deny",
-    "auditLevel": "basic",
-    "enabled": true
-  }' | jq
+curl -sS "http://localhost/api/v1/audit/messages?limit=20&refusals=true" \
+  -H "Authorization: Bearer $TOKEN" | jq '.items[] | {action, clientId, user, deniedAction, deniedTopic, reason}'
 ```
 
-Bind it to a topic pattern:
+A refusal carries both identities and a canonical machine-readable reason:
+
+```json
+{
+  "action": "mqtt.publish.denied",
+  "clientId": "plantops-lf12-probe9182",
+  "user": "testuser",
+  "deniedAction": "publish",
+  "deniedTopic": "restricted/ops/config",
+  "reason": "acl_role_not_in_topic_scope"
+}
+```
+
+The reason distinguishes the two causes an integration needs to tell apart:
+
+| `reason` | Meaning |
+| --- | --- |
+| `acl_role_not_in_topic_scope` | no rule brings this topic into scope for any role the identity holds |
+| `acl_role_action_not_permitted` | a rule covers the topic for the identity's role, and that role may not perform this operation |
+| `acl_insufficient_permissions` | the identity holds no role this build recognises |
+| `acl_unauthenticated` | the connection was not authenticated |
+| `acl_anonymous_restricted_topic` | anonymous connections may only use the public namespace |
+| `acl_policy_denied` | the topic policy refused the operation |
+
+This store is deliberately **not** covered by the chain verdict above — see
+`chain.excluded` in its response.
 
 ```bash
-curl -sS -X POST "http://localhost/api/v1/policies/bindings" \
+curl -sS http://localhost/api/v1/audit/validatechain/details \
   -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "pattern": "demo/line1/#",
-    "policyId": "demo-policy",
-    "priority": 100,
-    "enabled": true
-  }' | jq
+  | jq '{valid, checkedEntries, chain}'
 ```
 
-Resolve the policy for a concrete topic:
+This chain check has a deliberate, documented scope: it validates the
+system/action audit store. Topic-level message capture is separate, so do not
+interpret `valid: true` as proof that every MQTT payload is exposed or checked
+by this endpoint. See [Architecture](../../docs/architecture.md#what-the-evidence-chain-proves).
+
+### Runtime user lifecycle
+
+| Method | Endpoint | Use |
+| --- | --- | --- |
+| `GET` | `/api/v1/users` | list persisted users and IDs |
+| `DELETE` | `/api/v1/users/{id}` | revoke/delete a persisted evaluation user |
+
+Always remove a config-managed declaration before deleting the persisted user,
+or merge sync may recreate it on restart. Follow the complete
+[offboarding procedure](../../docs/access-management.md#revoke-an-evaluation-user).
+
+## UI and API responsibilities
+
+The Evaluation Preview is optimized for reading and reviewing Overview,
+Integrations, Evidence, Admin, users, and roles. It is not the full operations
+workspace. Use the API or `config.yaml` for topic creation, policy changes, and
+identity lifecycle operations.
+
+For delivery or enforcement proof, prefer:
+
+1. `./trailmq verify`;
+2. a real MQTT subscriber;
+3. decision details under Evidence or in `ACLMon`/`AuthMon` logs.
+
+Do not treat a Preview counter alone as proof that a publish was delivered.
+
+## Evaluation boundaries
+
+- The recipe is licensed for local, non-production evaluation only.
+- Generated CA material and credentials are local demo assets.
+- Browser-origin examples are intentionally convenient for local development
+  and must be restricted for a real deployment.
+- Hash linking provides local tamper evidence, not external notarization or
+  physically immutable storage.
+- TrailMQ can support traceability and regulated engineering work, but does not
+  certify the complete deployed system as CRA-, GMP/GxP-, Annex 11-, or 21 CFR
+  Part 11-compliant.
+
+See the repository [evaluation boundaries](../../README.md#evaluation-boundaries)
+and [license](../../LICENSE).
+
+## Operate the local recipe
 
 ```bash
-curl -sS -X POST "http://localhost/api/v1/policies/resolve" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"demo/line1/temperature"}' | jq
+./trailmq status
+./trailmq logs
+./trailmq down
+./trailmq start
+./trailmq reset
 ```
 
-Product meaning:
+Run `./trailmq help` for the complete command list and
+`./trailmq doctor` when the stack does not behave as expected.
 
-> Why would this MQTT message be allowed, denied, audited or treated as a
-> violation?
-
----
-
-## Queue and Dead-Letter Review
-
-Queue endpoints show how TrailMQ behaves when messages cannot be delivered
-immediately or need to be isolated for later review.
-
-| Method | Endpoint                          | Product purpose                    |
-| ------ | --------------------------------- | ---------------------------------- |
-| `GET`  | `/api/v1/queue/status`            | Inspect global queue health        |
-| `GET`  | `/api/v1/queue/deadletter`        | Review dead-lettered messages      |
-| `PUT`  | `/api/v1/queue/config`            | Update global queue behavior       |
-| `POST` | `/api/v1/queue/purge/{topic}`     | Reset queue state for one topic    |
-| `GET`  | `/api/v1/queues/{topic}/stats`    | Inspect per-topic queue state      |
-| `GET`  | `/api/v1/queues/{topic}/messages` | Read queued messages               |
-| `POST` | `/api/v1/queues/{topic}/enqueue`  | Enqueue a test message             |
-| `POST` | `/api/v1/queues/{topic}/dispatch` | Dispatch queued message            |
-| `POST` | `/api/v1/queues/{topic}/ack`      | Acknowledge delivery               |
-| `POST` | `/api/v1/queues/{topic}/nack`     | Negative acknowledge delivery      |
-
-Example:
-
-```bash
-curl -sS "http://localhost/api/v1/queue/status" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-```
-
-Product meaning:
-
-> If delivery is delayed or fails, can I see what happened instead of losing
-> visibility?
-
----
-
-## Audit and Evidence Review
-
-Audit endpoints expose the reviewable record of what happened inside TrailMQ.
-
-They are useful for evaluation, debugging, traceability checks and exported
-review data. TrailMQ can support evidence-oriented workflows, but using TrailMQ
-does not by itself make a system compliant with GMP, GxP, 21 CFR Part 11 or any
-other regulatory framework.
-
-| Method | Endpoint                              | Product purpose                    |
-| ------ | ------------------------------------- | ---------------------------------- |
-| `GET`  | `/api/v1/audit`                       | List audit entries                 |
-| `GET`  | `/api/v1/audit/summary`               | Read audit summary                 |
-| `GET`  | `/api/v1/audit/summary/extended`      | Read extended audit summary        |
-| `GET`  | `/api/v1/audit/validatechain`         | Validate audit chain               |
-| `GET`  | `/api/v1/audit/validatechain/details` | Inspect chain validation details   |
-| `GET`  | `/api/v1/audit/contract-status`       | Check evidence contract status     |
-| `POST` | `/api/v1/audit/contract-status/reset` | Reset evidence contract status     |
-| `GET`  | `/api/v1/audit/search`                | Search audit records               |
-| `GET`  | `/api/v1/audit/auth`                  | List authentication audit events   |
-| `GET`  | `/api/v1/audit/auth/stats`            | Read authentication audit stats    |
-| `GET`  | `/api/v1/audit/export?format=json`    | Export audit data                  |
-| `GET`  | `/api/v1/audit/export/json`           | Export audit data as JSON          |
-
-Some builds also expose focused review views such as `/api/v1/audit/gmp`.
-Treat these as audit/event views for evaluation and review, not as compliance
-certification.
-
-Example:
-
-```bash
-curl -sS "http://localhost/api/v1/audit/validatechain/details" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-```
-
-Product meaning:
-
-> What happened, was it recorded, and is the audit chain still intact?
-
----
-
-## Product Read Models
-
-Product read models provide higher-level views over broker, queue, audit and
-capability state.
-
-They are useful for dashboards, demos, evaluation reports and external tooling
-that should not need to reconstruct product state from low-level records.
-
-| Method | Endpoint                             | Product view                       |
-| ------ | ------------------------------------ | ---------------------------------- |
-| `GET`  | `/api/v1/flows`                      | Controlled message/control flows   |
-| `GET`  | `/api/v1/flows/{scope}`              | Flow detail for one topic/scope    |
-| `GET`  | `/api/v1/trust/summary`              | Trust and evidence summary         |
-| `GET`  | `/api/v1/capabilities/summary`       | Enabled capability/plugin state    |
-| `GET`  | `/api/v1/events/gmp`                 | Focused event view for review      |
-| `GET`  | `/api/v1/exports/trust?format=jsonl` | Export trust/evidence records      |
-| `GET`  | `/api/v1/exports/trust?format=csv`   | Export trust/evidence records      |
-
-The `/api/v1/events/gmp` view is a focused event view for regulated evaluation
-scenarios. It is not a compliance claim.
-
-Examples:
-
-```bash
-curl -sS "http://localhost/api/v1/flows" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-```
-
-```bash
-curl -sS "http://localhost/api/v1/trust/summary" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-```
-
-```bash
-curl -sS "http://localhost/api/v1/exports/trust?format=jsonl" \
-  -H "Authorization: Bearer ${TOKEN}"
-```
-
-Product meaning:
-
-> TrailMQ should not only move MQTT messages. It should help explain what
-> happened around those messages.
-
----
-
-## Recommended Local Evaluation Flow
-
-A simple evaluation flow is:
-
-```bash
-# 1. Check runtime readiness
-curl -sS http://localhost/ready | jq
-
-# 2. Login
-cd recipes/secure-mqtt-core
-
-ADMIN_USER="testadmin"
-ADMIN_PASS="$(cat secrets/testadmin.pwd)"
-
-TOKEN="$(
-  curl -sS -X POST "http://localhost/api/v1/auth" \
-    -H "Content-Type: application/json" \
-    -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" \
-  | jq -r '.token // .accessToken // .data.token // .data.accessToken'
-)"
-
-# 3. Inspect controlled topics
-curl -sS "http://localhost/api/v1/topics" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-
-# 4. Resolve policy for a topic
-curl -sS -X POST "http://localhost/api/v1/policies/resolve" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"demo/line1/temperature"}' \
-  | jq
-
-# 5. Check queue and DLQ behavior
-curl -sS "http://localhost/api/v1/queue/status" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-
-# 6. Validate audit chain
-curl -sS "http://localhost/api/v1/audit/validatechain/details" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-
-# 7. Read product-level trust state
-curl -sS "http://localhost/api/v1/trust/summary" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  | jq
-```
-
-This demonstrates the core evaluation path:
-
-> Configure MQTT behavior, inspect the effective state, send or simulate
-> traffic, review what happened and check whether the recorded evidence is still
-> intact.
-
----
-
-## Internal Verification Philosophy
-
-TrailMQ is developed with an internal scenario-based verification approach.
-
-The internal verification suite is not part of the public evaluation package.
-It is used during development to exercise TrailMQ through its real product
-surfaces:
-
-- MQTT over TLS
-- REST authentication
-- topic control
-- policy resolution
-- queue and dead-letter behavior
-- audit recording
-- audit-chain validation
-- health, readiness and metrics endpoints
-- negative and security behavior
-
-The goal is not only to check whether MQTT messages can be transported.
-
-The goal is to check whether TrailMQ remains controllable, inspectable and
-reviewable under realistic conditions.
-
-Internally verified product areas include:
-
-| Area | What is checked internally | Product meaning |
-| ---- | -------------------------- | --------------- |
-| Authentication | Missing, invalid or wrong credentials are rejected | Access is explicit |
-| Authorization | Restricted actions are blocked for insufficient roles | Runtime control is role-aware |
-| Topic control | Topic creation, hierarchy and effective settings are exercised | MQTT namespaces are manageable |
-| Queue behavior | Queue pressure, ACK/NACK behavior and DLQ paths are exercised | Delivery issues remain visible |
-| Audit trail | Audit entries and chain validation are exercised | Runtime behavior can be reviewed |
-| Integrity | Audit-chain behavior and tamper-oriented checks are exercised | Evidence changes should become visible |
-| Durability | Topics, queues, policies and audit state are exercised across runtime changes | State should survive more than one process moment |
-| Concurrency | MQTT traffic and REST changes are exercised in parallel | Runtime behavior is tested under realistic interaction |
-| API contracts | Common response shapes and error behavior are exercised | Automation can depend on stable API behavior |
-| Negative behavior | Bad input and forbidden actions are exercised | Failures should be explicit and diagnosable |
-
-This principle is central to TrailMQ:
-
-> TrailMQ should not only transport MQTT messages. It should make MQTT behavior
-> easier to control, inspect and review.
-
-The public REST API is therefore the main integration surface for local
-evaluation, automation and external tooling.
-
----
-
-## Compliance Note
-
-TrailMQ is built for environments where traceability, reviewability and
-controlled messaging matter.
-
-It can support regulated engineering practices by exposing audit records,
-policy decisions, queue state and evidence-oriented exports.
-
-However, TrailMQ itself does not certify a system as GMP, GxP, CSV, Annex 11 or
-21 CFR Part 11 compliant. Compliance depends on the full validated system,
-configuration, operating procedures, user management, infrastructure and
-organizational controls.
-
----
-
-## Run directly without the CLI
+You can run Compose directly:
 
 ```bash
 cd recipes/secure-mqtt-core
 docker compose up -d
 ```
 
-You usually don't need to — use `./trailmq start` from the repo root. The CLI
-loads the root `.env` file before it runs Compose. If you run Compose directly
-from the recipe directory, pass overrides in the shell instead:
-
-```bash
-TRAILMQ_HTTP_PORT=8080 TRAILMQ_MQTT_TLS_PORT=8884 docker compose up -d
-```
+The root launcher is preferred because it loads root `.env`, creates required
+folders and local secrets, checks certificates, and tracks the active recipe.

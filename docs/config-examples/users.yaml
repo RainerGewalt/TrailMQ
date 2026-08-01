@@ -4,6 +4,10 @@
 # Copy one into recipes/secure-mqtt-core/config.yaml only after providing
 # real credentials. Do not leave password_file entries pointing to files that
 # do not exist.
+#
+# The default recipe uses authsyncmode: "merge". Removing a user example from
+# config later does not revoke a user already stored in the runtime database.
+# Follow docs/access-management.md for offboarding.
 
 # Example: password kept in an external file.
 # Make sure the file exists before starting the backend.

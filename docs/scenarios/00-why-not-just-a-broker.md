@@ -121,8 +121,8 @@ shutdown command?", this log cannot answer it.
 Who (`testuser`), with what authority (`roles=[publisher]`), tried to do what
 (`publish`), where (`restricted/ops/config`), and what was decided (`DENY`).
 
-Then open **http://localhost/trailmq/** → **Evidence** → filter
-**Outcome: Blocked**: the same denial as a recorded, timestamped event —
+Then open **http://localhost/trailmq/** → **Activity** → filter
+**Outcome: Denied**: the same denial as a recorded, timestamped event —
 hash-linked to its predecessor so later edits become detectable
 ([scenario 4](04-tamper-evidence.md) proves that part).
 
@@ -135,7 +135,7 @@ hash-linked to its predecessor so later edits become detectable
 | Authenticated but unauthorized write | *(no such concept)* | Blocked, connection dropped |
 | Record of which topic was written | No | Yes |
 | Record of *why* it was allowed or denied | No | Yes — user, role, action, topic |
-| Can recorded history be checked for tampering | No | Yes, SHA-256 chain |
+| Can recorded system/action history be checked for tampering | No | Yes, SHA-256 chain |
 
 ## To be fair to the broker
 
@@ -150,6 +150,11 @@ files. The difference isn't that it's impossible — it's:
 - **Reviewability.** ACL files are edited on a server. TrailMQ exposes the
   *effective* configuration and decisions over an API and a UI, so you can
   answer questions without SSH access.
+
+The public chain check covers TrailMQ's system/action audit store. It is local
+tamper evidence, not external notarization, WORM storage, or a claim that every
+MQTT payload is included. [Architecture](../architecture.md#what-the-evidence-chain-proves)
+defines the trust boundary precisely.
 
 That is the whole product in one sentence:
 

@@ -41,6 +41,31 @@ Implementation defects belong in MQTrail. Documentation, Compose, environment, e
 screenshot and troubleshooting defects belong here — and are not closed by changing an
 internal MQTrail guide.
 
+## The release candidate is a pair of revisions
+
+This repository is not the release on its own, and neither is MQTrail:
+
+```
+MQTrail SHA   the implementation intended to become 3.1.0
+TrailMQ SHA   this repository — must start and explain exactly that implementation
+```
+
+The implementation always comes from MQTrail. What this repository owes is that a public
+user can actually reach it:
+
+```
+this README / Quickstart
+→ the environment and Compose infrastructure published here
+→ backend and frontend built from or matching the selected MQTrail SHA
+→ the running current MQTrail product
+```
+
+When something published here does not support the current implementation — a missing
+environment variable, a wrong image tag or port, a missing service, an obsolete command,
+old navigation in a screenshot, an undocumented credential flow, or no configuration for a
+newly shipped capability — that is a **release finding owned here**, not a test obstacle to
+be worked around with internal commands.
+
 ## First-user and release-readiness testing
 
 Any public-user, accessibility or release-readiness test **starts here**: this README, the
@@ -60,7 +85,14 @@ repository.
 
 ## MCP
 
-The TrailMQ MCP server is an **internal diagnostic tool**: read-only, unregistered, and not
-advertised as a public product feature. It must never be presented here as something a
-public user installs or depends on, and it must never be the reason a public path is
-considered working.
+Whether MCP ships publicly is an explicit release decision, and a capability existing in
+MQTrail source does not make it part of this distribution.
+
+**Currently internal for 3.1.0:** read-only, unregistered, not required by any Compose file
+here, and not advertised as a public feature. Every public workflow must complete without
+it, and it must never be the reason a public path counts as working.
+
+**If it becomes public**, this repository must carry the startup and Compose integration,
+environment configuration, authentication and authorization requirements, read-only
+guarantees, security limitations, tool documentation, troubleshooting and version
+compatibility — before it may be described as available.

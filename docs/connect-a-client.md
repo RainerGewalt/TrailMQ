@@ -37,7 +37,7 @@ Every MQTT action passes **two independent checks**. Both must allow it:
    | --------- | -------------- |
    | `public/#` | All authenticated roles |
    | `restricted/#` | Admin only |
-   | everything else | **Deny by default** — until a topic in that namespace grants roles via its `accessControl: role` / `allowedRoles` settings (created in the Web UI or via `POST /api/v1/topics`) |
+   | everything else | **Deny by default** — until a topic in that namespace grants roles via its `accessControl: role` / `allowedRoles` settings (created through `POST /api/v1/topics` in the Evaluation Preview package) |
 
 So: `testuser` (role `publisher`, permission `publish:*`) can publish to
 `public/demo/temperature` immediately, but publishing to
@@ -169,11 +169,11 @@ delivery. If in doubt, check what TrailMQ recorded:
 # Denials in the broker log
 ./trailmq logs backend | grep ACLMon
 
-# Recorded events / evidence (see the Web UI → Evidence as well)
+# Recorded events / evidence (see the Web UI → Activity as well)
 ```
 
 Every connect, authentication decision and denial is also visible in the Web
-UI: open **Evidence** and filter by outcome (e.g. **Blocked**) — each entry
+UI: open **Activity** and filter by outcome (e.g. **Denied**) — each entry
 is labeled with how it was captured.
 
 ## Configuration map — what must match what
@@ -192,4 +192,6 @@ is labeled with how it was captured.
 - Run the proof: `./trailmq verify`
 - Walk through the [scenarios](scenarios/) — allowed flow, denied actions,
   and creating a governed namespace
+- Use [Access management](access-management.md) before adding or revoking an
+  evaluation identity; config merge does not make YAML deletion a revocation
 - Explore the REST API: [Secure MQTT Core walkthrough](../recipes/secure-mqtt-core/README.md)

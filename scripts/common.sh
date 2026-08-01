@@ -220,7 +220,7 @@ ${C_BOLD}Usage${C_RESET}
 
 ${C_BOLD}Start here${C_RESET}
   ${C_GREEN}quickstart${C_RESET}   Set up and start the local evaluation stack
-  ${C_GREEN}verify${C_RESET}       Prove it: allowed delivery, blocked publish, audit chain
+  ${C_GREEN}verify${C_RESET}       Prove it: allow, deny, system/action audit chain
   ${C_GREEN}open${C_RESET}         Show the local URLs
   ${C_GREEN}reset${C_RESET}        Stop the stack and wipe runtime data
 

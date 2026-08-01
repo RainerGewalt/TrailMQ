@@ -3,9 +3,14 @@
 **Goal:** add a read-only "viewer" account the governed way — a user that can
 watch everything on `public/#` but can never publish.
 
-**What you learn:** users and roles live in one reviewable config file;
-passwords live in separate secret files; role permissions and namespace ACL
-compose.
+**What you learn:** configured users and roles start in one reviewable config
+file, passwords live in separate secret files, runtime identities persist in
+the database, and role permissions compose with namespace ACLs.
+
+> **Access-lifecycle warning:** this recipe uses `authsyncmode: "merge"`.
+> Removing a user from `config.yaml` or deleting the password file does not
+> revoke a user already stored in the runtime database. The cleanup section
+> uses the API to remove that runtime identity as well.
 
 ## 1. Create the password file
 
@@ -104,5 +109,36 @@ regardless of the namespace.
 
 ## Clean up (optional)
 
-Remove the `testviewer` block from `config.yaml`, delete
-`secrets/testviewer.pwd`, and restart the backend.
+Removing only the YAML block is not sufficient in merge mode. Follow these
+steps:
+
+1. Remove the `testviewer` block from `config.yaml` so a later restart cannot
+   recreate it.
+2. Use the admin API to find and delete the persisted runtime user:
+
+   ```bash
+   ADMIN_PW=$(cat recipes/secure-mqtt-core/secrets/testadmin.pwd)
+   TOKEN=$(
+     curl -sS -X POST http://localhost/api/v1/auth \
+       -H 'Content-Type: application/json' \
+       -d "{\"username\":\"testadmin\",\"password\":\"${ADMIN_PW}\"}" \
+     | jq -r '.token'
+   )
+
+   USER_ID=$(
+     curl -sS http://localhost/api/v1/users \
+       -H "Authorization: Bearer ${TOKEN}" \
+     | jq -r '.items[] | select(.username == "testviewer") | .id'
+   )
+
+   test -n "${USER_ID}" || { echo 'User not found'; exit 1; }
+
+   curl -sS -X DELETE "http://localhost/api/v1/users/${USER_ID}" \
+     -H "Authorization: Bearer ${TOKEN}"
+   ```
+
+3. Delete `secrets/testviewer.pwd`, restart the backend, and confirm that a new
+   connection with the old credentials is rejected.
+
+See [Access management](../access-management.md) for the complete identity
+lifecycle and the reason both config and runtime state must be handled.

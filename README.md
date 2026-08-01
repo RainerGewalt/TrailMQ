@@ -2,28 +2,45 @@
 
 [![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
 [![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
-[![Release](https://img.shields.io/badge/release-3.0.0-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
+[![Release](https://img.shields.io/badge/published%20release-3.0.0-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
 [![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
-[![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#quality-security--compliance-readiness)
-[![Automated tests](https://img.shields.io/badge/tests-750%2B%20automated-0e6e5b)](#quality-security--compliance-readiness)
+[![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#release-quality-and-security)
 
-# See an allowed and a blocked MQTT decision on your machine in five minutes
+# Govern MQTT access — and keep an attributable decision record
 
-**TrailMQ is a self-hosted MQTT broker that decides, enforces and records.**
-Clients connect to it directly — no proxy, no sidecar. It authenticates them,
-checks whether they may publish or subscribe where they are asking to, and
-keeps a hash-linked record of what it decided, so you can answer "who did
-what, and was it allowed?" months later.
+**TrailMQ is a self-hosted MQTT broker with policy enforcement and an
+attributable decision record built in.** Clients connect directly using standard
+MQTT. TrailMQ authenticates them, decides whether each action is allowed,
+enforces that decision, and preserves the outcome for later review.
+
+**What "tamper-evident" covers, precisely.** The hash-linked chain walks the
+system and action store: sign-ins, administrative changes, identity and role
+changes, policy and topic-rule changes. MQTT message evidence — including
+publish and subscribe refusals — is recorded in its own store, which that
+verdict does **not** walk. The product states this per record, as
+`Outside validated scope`, and states it again beside the verdict. If your
+requirement is a tamper-checked record of individual MQTT decisions, that is not
+what this check proves today.
+
+It is designed for industrial, regulated, and traceability-sensitive systems
+where “the message was sent” is not enough. You also need to know **who acted,
+under which role, on which topic, and whether the action was allowed**.
+
+## Prove the core claim locally
+
+Requirements: **Docker 20.10+**, **Docker Compose v2**, **Bash** (Linux, macOS,
+or WSL), and internet access for the first image pull.
 
 ```bash
 git clone https://github.com/RainerGewalt/TrailMQ.git
 cd TrailMQ
-./trailmq quickstart     # sets everything up and starts it
-./trailmq verify         # proves it works — 7 checks, ~30 seconds
+./trailmq quickstart
+./trailmq verify
 ```
 
-`verify` is the point of this repository. It doesn't just check that
-containers are running:
+`quickstart` creates local evaluation credentials and certificates, then starts
+the Docker stack. `verify` exercises the product rather than just checking
+container health:
 
 ```text
 [PASS] Runtime ready
@@ -31,147 +48,187 @@ containers are running:
 [PASS] Authorized publish reached the subscriber   public/demo/temperature
 [PASS] Unauthorized publish was blocked            restricted/ops/config
 [PASS] Denial recorded with user, role, action and topic
-       DENY user="testuser" roles=[publisher] action=publish topic="restricted/ops/config"
 [PASS] REST API authentication issues a token
-[PASS] System/action audit chain intact          307 entries hash-checked
+[PASS] System/action audit chain intact
 
 7/7 checks passed
 ```
 
-A plain broker would have accepted or silently dropped both of those
-messages. That difference is the product.
+The proof takes about 30 seconds after the images are available. No local MQTT
+client is required; `verify` falls back to a temporary Docker client.
 
-### Then what?
+```bash
+./trailmq credentials   # print the generated local login
+./trailmq open          # print Web UI, REST, MQTT TLS and WebSocket endpoints
+```
 
-| I want to… | Go to |
-| ---------- | ----- |
-| understand why this isn't just a broker | [Scenario 0 — the side-by-side comparison](docs/scenarios/00-why-not-just-a-broker.md) |
-| connect my own client | [Connect a client](docs/connect-a-client.md) |
-| work through real situations | [Scenarios](docs/scenarios/) — 8 guided walkthroughs |
-| see it in a browser | `http://localhost/trailmq/` (login: `./trailmq credentials`) |
+Open **http://localhost/trailmq/**, sign in as `testadmin`, then open
+**Activity** and filter for **Outcome: Denied**.
 
----
+If setup fails, run `./trailmq doctor` and see
+[Troubleshooting](docs/troubleshooting.md).
 
-## What this repository is
+## The product difference
 
-This is the **public, Docker-first evaluation package** for **TrailMQ 3.0.0**:
+A conventional MQTT broker can also be secured with TLS, identities, and ACLs.
+TrailMQ's differentiator is that enforcement and review are one product path,
+not separate broker configuration and log-analysis tasks.
 
-- a **CLI launcher** (`./trailmq`) that wraps Docker Compose,
-- ready-to-run **recipes** (starter kits) under [`recipes/`](recipes/),
-- the **configuration** and **documentation** you need to evaluate it.
-
-The backend and frontend ship as **Docker images** — their source is not part
-of this repo. You don't build anything; you run images and point them at config.
-
-**Who it's for:** engineers evaluating secure, auditable MQTT for industrial,
-regulated, or traceability-sensitive environments, and anyone who wants to see
-how policy enforcement plus an audit chain behave in practice.
+| Question | Conventional broker setup | TrailMQ evaluation |
+| --- | --- | --- |
+| May this identity publish here? | Usually decided by broker ACLs | Role permission **and** namespace policy must allow it |
+| What happens to unknown namespaces? | Depends on the deployed ACL configuration | Denied by default |
+| How do I inspect a denial later? | Correlate configuration and logs | Review an attributed decision: user, role, action, topic, outcome |
+| Can I detect edits to the recorded history? | Requires an external evidence pipeline | Validate the hash-linked system/action record — MQTT message evidence is a separate store and is not covered by that check |
+| Do clients need a proxy or sidecar? | Product-dependent | No — they connect to TrailMQ as the broker |
 
 ```text
-MQTT message → TrailMQ Core (transport + auth)
-            → Policy decision (who / what / how)
-            → Audit evidence  (hash-linked, tamper-evident record)
+MQTT client
+    │ standard MQTT over TLS or WebSocket
+    ▼
+TrailMQ Core ── authenticate ── authorize ── enforce
+                                      │
+                                      ▼
+                              hash-linked evidence
 ```
 
-See [docs/architecture.md](docs/architecture.md) for the full model.
+In one sentence:
 
----
+> TrailMQ decides, enforces, and preserves the evidence at the point where MQTT
+> traffic enters the system.
 
-## Screenshots
+For the command-by-command comparison, run
+[Why not just use a broker?](docs/scenarios/00-why-not-just-a-broker.md).
 
-The public images ship the **Evaluation Preview** — a slimmed, scan-first UI
-with four surfaces (Overview, Integrations, Evidence, Admin). The advanced
-operations UI (**TrailMQ Pro**) is available on request — see [Editions](#editions).
+## Choose your evaluation path
+
+| Your goal | Start here | Typical time |
+| --- | --- | --- |
+| See the differentiator | `./trailmq quickstart` → `./trailmq verify` | ~5 min plus first image pull |
+| Compare it with a plain broker | [Scenario 0](docs/scenarios/00-why-not-just-a-broker.md) | ~5 min |
+| Connect your own application | [Connect an MQTT client](docs/connect-a-client.md) | ~10 min |
+| Test allow, deny, governance, and tamper detection | [Guided scenarios](docs/scenarios/README.md) | 10–30 min |
+| Evaluate architecture or API fit | [Architecture](docs/architecture.md) → [Secure MQTT Core](recipes/secure-mqtt-core/README.md) | as needed |
+| Understand scope before investing time | [Evaluation boundaries](#evaluation-boundaries) | 2 min |
+
+The complete task-oriented documentation map is in
+[docs/README.md](docs/README.md).
+
+## Is TrailMQ a fit?
+
+| Good evaluation fit | Probably not the right tool |
+| --- | --- |
+| MQTT actions must be attributable and reviewable | You only need basic message transport |
+| Sensitive namespaces should fail closed | Anonymous/open-by-default access is intentional |
+| Policy denials need an inspectable reason | Broker logs already satisfy the review requirement |
+| Local integrity checks support an evidence workflow | You need externally notarized or WORM evidence out of the box |
+| Existing standard MQTT clients must keep working | You need device provisioning, firmware management, or telemetry dashboards |
+
+The public package answers technical-fit questions locally. Production and
+commercial fit require the corresponding TrailMQ edition and agreement.
+
+## What is in this repository
+
+This is the public, Docker-first evaluation package for TrailMQ.
+
+**What you get today is `3.0.0`.** That is what the recipe pulls, and it is what is
+published on Docker Hub. Everything below describes that version.
+
+A **3.1.0 Technical Preview** exists. It is built and verified, and it is **not
+publicly obtainable** — the images are not on Docker Hub, and this repository does not
+contain the source to build them. There is no tag you can pin that will produce it. If
+you want to evaluate it before it is published, ask for guided access:
+**contact@trailmq.com**.
+
+The product reports its own build on the **Access** page and in `./trailmq verify`, so
+you can always tell which one you are looking at.
+
+This package contains:
+
+- the `./trailmq` launcher and diagnostics;
+- the ready-to-run `secure-mqtt-core` Docker recipe;
+- configuration examples and guided scenarios;
+- the documentation needed to evaluate and connect TrailMQ.
+
+The backend and frontend are delivered as signed Docker images. Their source is
+not included in this repository, and the evaluation license does not permit
+production or commercial use.
+
+## What you can evaluate today
+
+- **Secure MQTT transport:** authenticated MQTT over TLS and MQTT over
+  WebSocket.
+- **Fail-closed access:** role permissions plus namespace/topic policy; unknown
+  namespaces are closed until explicitly granted.
+- **Reviewable denials:** blocked actions retain the user, role, action, topic,
+  time, and outcome needed for investigation.
+- **Integrity checking:** system/action audit entries form a hash-linked chain
+  that can be validated and deliberately tampered with in a local scenario.
+- **Scriptable control:** the REST API exposes topics, effective settings,
+  policies, queues, and evidence-oriented functions.
+- **Standard clients:** use `mosquitto`, Python `paho-mqtt`, Node.js `mqtt.js`,
+  or a browser WebSocket client without a TrailMQ SDK.
+
+### How access is decided
+
+Every MQTT action must pass two independent gates:
+
+1. The user's **role permission** allows the action and MQTT topic filter.
+2. The **namespace/topic ACL** allows that role on the requested path.
+
+The default evaluation policy is deliberately easy to test:
+
+| Namespace | Default behavior |
+| --- | --- |
+| `public/#` | Available to authenticated roles, subject to role permissions |
+| `restricted/#` | Admin only |
+| everything else | Denied until a topic explicitly grants roles |
+
+This means a role with `publish:*` can still be denied by the second gate. See
+[Connect an MQTT client](docs/connect-a-client.md#how-trailmq-decides-allow-or-deny)
+for examples.
+
+## Evaluation Preview
+
+The public images include a compact, review-oriented UI with four surfaces:
+
+| Surface | Answers |
+| --- | --- |
+| **Overview** | Is it running, and what needs attention next? |
+| **Access** | Who may publish and subscribe on which topics? |
+| **Clients** | Which publishers and subscribers are connected right now? |
+| **Activity** | What was allowed or denied, why, and what is recorded about it? |
+
+Recorded events and the evidence chain live on **Activity** — there is no separate
+Evidence page.
 
 <p align="center">
-  <img src="docs/media/preview-signin.jpg" width="90%" alt="TrailMQ sign-in: a governed MQTT workspace" />
+  <img src="docs/media/preview-signin.jpg" width="90%" alt="TrailMQ sign-in for the local evaluation workspace" />
 </p>
 
-| Adopt & review integrations | Recorded evidence timeline | Platform & user administration |
+| Integration records | System/action evidence | Runtime and access overview |
 | --- | --- | --- |
 | ![Integrations](docs/media/preview-integrations.jpg) | ![Evidence](docs/media/preview-evidence.jpg) | ![Admin](docs/media/preview-admin.jpg) |
-| Detected MQTT connections become adoptable integrations; search, filter and page the loaded set. | Every recorded event, labeled by how it was captured — filter, sort, switch Table/Timeline, replay. | Server health, subsystem checks, runtime info, and searchable users/roles. |
+| Search and review integration records available to the Preview. | Filter and inspect recorded system and decision events. | Inspect health, runtime information, users, and roles. |
 
----
-
-## Try it in 30 seconds
-
-Requirements: **Docker 20.10+**, **Docker Compose v2+**, and **Bash** (Linux,
-macOS, or WSL).
-
-```bash
-git clone https://github.com/RainerGewalt/TrailMQ.git
-cd TrailMQ
-./trailmq quickstart
-```
-
-Wait for Docker to pull the images, then open the Web UI. Default surfaces:
-
-| Surface  | URL or address              |
-| -------- | --------------------------- |
-| Web UI   | `http://localhost/trailmq/` |
-| REST API | `http://localhost/api/v1`   |
-| MQTT TLS | `localhost:8883`            |
-| MQTT WS  | `ws://localhost/mqtt`       |
-
-Login passwords are generated on first launch and stored in
-`recipes/secure-mqtt-core/secrets/`. Print them again any time with:
-
-```bash
-./trailmq credentials
-```
-
-New here? The [Quickstart](docs/quickstart.md) walks through the first run.
-
----
-
-## Where do I change what?
-
-Everything you can adjust lives in **two places**: the root `.env` (runtime
-knobs like ports and image tags) and the recipe's `config.yaml` (product
-behavior). This table maps intent to the exact place:
-
-| I want to change…                  | Edit / run                                                                      |
-| ---------------------------------- | ------------------------------------------------------------------------------- |
-| Host ports (80, 8883)              | `.env` → `TRAILMQ_HTTP_PORT`, `TRAILMQ_MQTT_TLS_PORT`                            |
-| Which images / image tags          | `.env` → `TRAILMQ_BACKEND_IMAGE`, `TRAILMQ_FRONTEND_IMAGE`                       |
-| Users, roles, permissions          | `recipes/secure-mqtt-core/config.yaml` → `users:` / `roles:`                     |
-| Evaluation passwords               | `recipes/secure-mqtt-core/secrets/*.pwd` (or `./trailmq credentials` to read)    |
-| TLS certificates                   | drop into `recipes/secure-mqtt-core/certs/`, or run `./trailmq certs`            |
-| Queue / dead-letter behavior       | `recipes/secure-mqtt-core/config.yaml` → `queue_advanced:`                       |
-| Audit retention / export           | `recipes/secure-mqtt-core/config.yaml` → `audit_advanced:`, `audit_retention_days:` |
-| CORS / WebSocket origins           | `recipes/secure-mqtt-core/config.yaml` → `cors:`, `mqtt_ws_allowed_origins:`     |
-| Log verbosity                      | `recipes/secure-mqtt-core/config.yaml` → `log_level:`                            |
-| Reverse-proxy routes               | `recipes/secure-mqtt-core/nginx.conf`                                            |
-
-To set custom ports or pin image versions, start from the template:
-
-```bash
-cp .env.example .env      # edit, then:
-./trailmq start
-```
-
-Runtime data, generated certificates, secrets, logs, and audit archives are
-**gitignored** — the repository stays clean no matter what you run locally.
-
----
+The Preview is primarily a **read and review surface**. Use the REST API and
+`config.yaml` for operational changes such as creating governed topics or
+changing roles. The advanced operations workspace is part of TrailMQ Pro; see
+[Editions](#editions).
 
 ## Connect a client
 
-TrailMQ *is* the broker. Point any standard MQTT client at the TLS listener,
-authenticate with an evaluation user, and publish under a governed namespace.
-Clients present username + password over TLS; the server verifies them against
-role-based policy before allowing a connect or a publish/subscribe.
+TrailMQ is the broker. Point a standard MQTT client at the TLS listener and use
+one of the generated evaluation identities.
 
-| What | Value (default recipe) |
+| Setting | Default value |
 | --- | --- |
-| Endpoint (TLS) | `mqtts://localhost:8883` |
-| Endpoint (WebSocket) | `ws://localhost/mqtt` |
+| MQTT TLS | `mqtts://localhost:8883` |
+| MQTT WebSocket | `ws://localhost/mqtt` |
 | CA certificate | `recipes/secure-mqtt-core/certs/ca_cert.pem` |
-| Publisher user | `testuser` (publish role) — password via `./trailmq credentials` |
-| Admin / subscriber user | `testadmin` (admin role) |
-
-Example — publish a value and read it back (uses [`mosquitto-clients`](https://mosquitto.org/)):
+| Publisher | `testuser` — password via `./trailmq credentials` |
+| Administrator/subscriber | `testadmin` — password via `./trailmq credentials` |
+| Immediately allowed test topic | `public/demo/temperature` |
 
 ```bash
 CA=recipes/secure-mqtt-core/certs/ca_cert.pem
@@ -183,224 +240,135 @@ mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
   -m '{"value":21.4,"unit":"degC"}'
 ```
 
-The `public/#` namespace is open to all authenticated roles out of the box;
-`restricted/#` is admin-only; every other namespace is **deny-by-default**
-until a topic grants roles. The connect and every access decision are
-recorded — open **Evidence** in the Web UI to review them.
+Complete CLI, Python, Node.js, and browser examples are in
+[Connect an MQTT client](docs/connect-a-client.md).
 
-Full guide with Python, Node.js and browser-WebSocket examples:
-[Connect a client](docs/connect-a-client.md). Step-by-step walkthroughs
-(allowed flow, denied actions, governing a namespace):
-[Scenarios](docs/scenarios/). REST details: [Secure MQTT Core
-walkthrough](recipes/secure-mqtt-core/README.md).
+## Configure the evaluation
 
----
+There are two configuration surfaces:
 
-## What you can evaluate
+- root `.env` — host ports and Docker image tags;
+- `recipes/secure-mqtt-core/config.yaml` — product behavior.
 
-- `./trailmq verify` — the scripted proof: allowed delivery, blocked publish,
-  recorded decision, intact audit chain.
-- [Scenarios](docs/scenarios/) — eight guided walkthroughs, each answering one
-  concrete question. Highlights:
-  - [Why not just use a broker?](docs/scenarios/00-why-not-just-a-broker.md) —
-    the same commands against a standard broker and against TrailMQ.
-  - [When "success" isn't delivery](docs/scenarios/07-message-policy-qos.md) —
-    a publish that reports success and still never arrives, plus the recorded
-    reason why.
-  - [Tamper evidence](docs/scenarios/04-tamper-evidence.md) — edit the audit
-    history behind TrailMQ's back and watch the chain check catch it.
-- In the Web UI: **Evidence** shows recorded events, every row labeled by how
-  it was captured and filterable by outcome (e.g. **Blocked**).
+Product configuration is read when the backend starts; restart it after direct
+file changes unless a guided scenario says the API applies a change live.
 
----
+| Change | Edit or run |
+| --- | --- |
+| Host ports or image tags | copy `.env.example` to `.env` |
+| Users, roles, and permissions | `config.yaml` → `users:` / `roles:` |
+| Evaluation passwords | `./trailmq credentials` or `secrets/*.pwd` |
+| TLS certificates | `./trailmq certs` or `certs/` |
+| Queue and dead-letter behavior | `config.yaml` → `queue_advanced:` |
+| Audit retention and export | `config.yaml` → `audit_advanced:` / `audit_retention_days:` |
+| Browser origins | `config.yaml` → `cors:` / `mqtt_ws_allowed_origins:` |
 
-## Quality, security & compliance readiness
-
-Every published `v*.*.*` release is cut only from `master` at a commit whose full
-CI is green, then built, **cosign-signed (keyless)**, and published by an
-automated pipeline.
-
-- **Automated tests** — 750+ frontend unit tests with coverage; Go `-race`, `vet`,
-  build, and module verification; live REST/MQTT allow-deny and restart checks on
-  the release commit.
-- **Supply-chain & security scanning** — dependency-vulnerability, static analysis,
-  secret scanning, filesystem scanning, and Dockerfile lint gate the release SHA.
-- **Signed, immutable artifacts** — images are content-addressed by digest and
-  cosign-signed; signatures are verified before stable tags are promoted.
-
-**Regulatory readiness, stated honestly:**
-
-- **EU Cyber Resilience Act (CRA):** TrailMQ's signed artifacts, vulnerability
-  reporting ([SECURITY.md](SECURITY.md)), and continuous scanning *support*
-  CRA-readiness work. This is not a conformity assessment or a CE declaration.
-- **GxP / GMP / CSV / Annex 11 / 21 CFR Part 11:** TrailMQ can *support*
-  traceability and regulated engineering practices, but it does **not** certify a
-  system as compliant. Compliance depends on the validated system, procedures,
-  users, infrastructure, and the organizational controls around it.
-
----
-
-## Editions
-
-| | Evaluation Preview (this repo) | TrailMQ Pro |
-| --- | --- | --- |
-| UI | Four scan-first surfaces: Overview, Integrations, Evidence, Admin | Full operations workspace: deeper governance, decision explanations, live/historical KPI, twin & context views |
-| Backend | Full hardened backend image | Same backend |
-| Use | Free, local, non-production evaluation | Production & commercial use |
-| Availability | Public Docker images | **On request** |
-
-The advanced frontend is not published here yet. If it fits your use case, get in
-touch — **contact@trailmq.com** (or [trailmq.com](https://trailmq.com)).
-
----
-
-## CLI reference
-
-```bash
-./trailmq            # prints the command menu
-```
-
-**The four you actually need:**
-
-| Command                 | Purpose                                             |
-| ----------------------- | --------------------------------------------------- |
-| `./trailmq quickstart`  | Set up and start the local evaluation stack         |
-| `./trailmq verify`      | Prove it: allowed delivery, blocked publish, chain  |
-| `./trailmq open`        | Show the local URLs                                 |
-| `./trailmq reset`       | Stop the stack and wipe runtime data                |
-
-<details>
-<summary><b>Advanced commands</b></summary>
-
-| Command                 | Purpose                                      |
-| ----------------------- | -------------------------------------------- |
-| `./trailmq start`       | Start or repair the setup (same as quickstart) |
-| `./trailmq launch`      | Guided first run (pick a starter kit)        |
-| `./trailmq up`          | Start the active recipe                      |
-| `./trailmq down`        | Stop the active recipe                       |
-| `./trailmq status`      | Show services, ports, audit state, plugins   |
-| `./trailmq credentials` | Show generated local evaluation login        |
-| `./trailmq logs`        | Tail logs for the active recipe              |
-| `./trailmq doctor`      | Check Docker, config, certs, secrets, ports  |
-| `./trailmq certs`       | Generate local demo certificates             |
-| `./trailmq purge`       | Remove runtime data, certs, secrets, state   |
-
-</details>
-
----
-
-## Starter Kits
-
-A recipe bundles a specific combination of features into a ready-to-run stack.
-They live under [`recipes/`](recipes/).
-
-**Current evaluation:** [`Secure MQTT Core`](recipes/secure-mqtt-core/) —
-policy enforcement, audit trail, evidence chain. This is what `quickstart`
-sets up, and it is the only recipe you need today.
-
-<details>
-<summary><b>Roadmap</b> — not available yet</summary>
-
-| Starter kit            | Purpose                                          |
-| ---------------------- | ------------------------------------------------ |
-| Explain Decisions      | Decision traces for broker decisions             |
-| Live vs Historical KPI | Compare live MQTT values with historical context |
-
-</details>
-
----
-
-## Configuration
-
-Copy `.env.example` to `.env` when you need to pin images or avoid local port
-conflicts:
+For a port conflict:
 
 ```bash
 cp .env.example .env
-```
-
-Common overrides:
-
-```env
-TRAILMQ_HTTP_PORT=8080
-TRAILMQ_MQTT_TLS_PORT=8884
-TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:3.0.0
-TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:3.0.0
-```
-
-The current release is **3.0.0**. The recipe defaults to the `3.0.0` release
-tags; pinning them in `.env` keeps your evaluation reproducible even after
-newer images are published.
-
-Then run:
-
-```bash
+# Set TRAILMQ_HTTP_PORT=8080 and/or TRAILMQ_MQTT_TLS_PORT=8884
 ./trailmq start
 ```
 
-## Verification And Release Evidence
+Generated certificates, credentials, logs, databases, and audit archives are
+gitignored.
 
-The source project defines automated gates for backend Go tests, frontend
-type/unit/build checks, Preview bundle verification, Docker image builds,
-security scanning, SBOM/provenance, checksums, and cosign signing.
+## Evaluation boundaries
 
-Treat exact test counts, workflow URLs, image digests, SBOMs, attestations, and
-signatures as evidence for the specific release tag being evaluated. Do not
-treat screenshots, demo records, or local generated data as production evidence.
+Read these before treating the Preview as a production-management or compliance
+surface:
 
-## CRA And GMP/GxP Boundary
+- **Local, non-production evaluation only.** Demo certificates and generated
+  users are not deployment-ready. Review the [license](LICENSE).
+- **The UI is review-first.** Topic creation, policy changes, and user lifecycle
+  operations currently use the REST API and/or configuration files.
+- **Config sync uses merge semantics.** Removing a user from `config.yaml` or
+  deleting its password file does not revoke a user already persisted in the
+  runtime database. Follow [Access management](docs/access-management.md) for
+  safe offboarding.
+- **The chain check has a defined scope.** `./trailmq verify` validates the
+  system/action audit chain. It does not claim that every MQTT payload is
+  exposed in the Preview or covered by that same check.
+- **Preview counters are not delivery proof.** Use `./trailmq verify`, an MQTT
+  subscriber, and the recorded decision details when evaluating enforcement.
+- **Compliance is a system property.** TrailMQ can support traceability and
+  review workflows; it is not by itself a CRA conformity assessment, CE
+  declaration, GMP/GxP validation, Annex 11 package, or 21 CFR Part 11 package.
 
-TrailMQ can support security, traceability, evidence review, release identity,
-SBOM/provenance, and operational documentation activities that are relevant to
-CRA-readiness and regulated environments.
+These boundaries are intentional documentation, not hidden assumptions. They
+make the evaluation reproducible and keep product claims tied to observable
+evidence.
 
-TrailMQ is not a CRA conformity declaration, CE marking, GMP/GxP/CSV validation,
-EU GMP Annex 11 compliance package, or 21 CFR Part 11 compliance package by
-itself. Validation, intended-use assessment, procedural controls, risk
-management, and legal/regulatory determinations remain the deployer's
-responsibility.
+## Release quality and security
 
-## Repository Map
+Published releases are built by an automated pipeline and use keyless cosign
+signing. The source project gates releases with backend and frontend tests,
+live MQTT/REST allow-deny checks, dependency and static analysis, secret and
+filesystem scanning, and Dockerfile linting.
 
-```text
-TrailMQ/
-├── trailmq                     CLI launcher (start here)
-├── .env.example                runtime overrides (ports, image tags)
-├── recipes/                    self-contained Docker starter kits
-│   ├── secure-mqtt-core/       available evaluation stack
-│   │   ├── config.yaml         product behavior (users, queue, audit, …)
-│   │   ├── docker-compose.yaml the stack definition
-│   │   └── nginx.conf          reverse-proxy routes
-│   └── coming-soon/            planned recipes
-├── scripts/                    CLI subcommand implementations
-├── plugins/catalog.yaml        planned plugin catalog
-└── docs/                       quickstart, architecture, troubleshooting, media
-```
+Treat test counts, signatures, image digests, SBOMs, and attestations as
+evidence for the specific release tag you evaluate. Security reports follow
+[SECURITY.md](SECURITY.md).
 
----
+That paragraph describes `3.0.0`, the release you can obtain. It does **not** yet
+describe the 3.1.0 Technical Preview: the automated pipeline is currently unavailable
+to this project, so the preview candidate has been verified locally and has no
+pipeline-produced signature, digest or attestation. It is not published, and it will
+not be published until it can go through the same gate as every release before it.
+Saying so is the same standard this product asks of its own evidence.
+
+## Editions
+
+| | Evaluation Preview (this repository) | TrailMQ Pro |
+| --- | --- | --- |
+| UI | Compact Overview, Access, Clients and Activity review surfaces | Advanced operations workspace, deeper governance and decision explanations |
+| Backend | Hardened evaluation image | Production/commercial backend |
+| Intended use | Local, non-production technical evaluation | Production and commercial use |
+| Availability | Public Docker images | On request |
+
+For production or commercial evaluation, contact **contact@trailmq.com** or
+visit [trailmq.com](https://trailmq.com).
+
+Evaluating TrailMQ with a real MQTT use case? Share your setup experience or request
+direct onboarding support at **contact@trailmq.com**. TrailMQ sends no telemetry: no
+topics, payloads, identities or operational metadata leave your machine.
+
+## CLI essentials
+
+| Command | Purpose |
+| --- | --- |
+| `./trailmq quickstart` | Prepare and start the local evaluation stack |
+| `./trailmq verify` | Run the seven-check decision proof |
+| `./trailmq open` | Print local endpoints |
+| `./trailmq credentials` | Print generated evaluation credentials |
+| `./trailmq status` | Show runtime and audit status |
+| `./trailmq doctor` | Diagnose Docker, config, certificates, credentials, and ports |
+| `./trailmq down` | Stop the stack and keep local data |
+| `./trailmq reset` | Stop the stack and remove runtime data |
+
+Run `./trailmq help` for the complete command list.
 
 ## Documentation
 
 | Document | Use it for |
 | --- | --- |
-| [Quickstart](docs/quickstart.md) | Minimal first run |
-| [Connect a client](docs/connect-a-client.md) | CLI, Python, Node.js and WebSocket clients; the access model |
-| [Scenarios](docs/scenarios/README.md) | Guided walkthroughs: allow, deny, govern |
-| [Secure MQTT Core](recipes/secure-mqtt-core/README.md) | API walkthrough and recipe details |
-| [Architecture](docs/architecture.md) | Product model and audit-chain concept |
-| [Plugins](docs/plugins.md) | Planned extension model |
-| [Troubleshooting](docs/troubleshooting.md) | Common first-run issues |
-| [Contributing](CONTRIBUTING.md) | Public-repo contribution scope |
-| [Security](SECURITY.md) | Vulnerability reporting |
-
----
+| [Documentation home](docs/README.md) | Choose the shortest path for your task |
+| [Quickstart](docs/quickstart.md) | First successful proof and login |
+| [Connect a client](docs/connect-a-client.md) | CLI, Python, Node.js, WebSocket, and access rules |
+| [Guided scenarios](docs/scenarios/README.md) | Allow, deny, govern, queue, QoS, and tamper exercises |
+| [Access management](docs/access-management.md) | Add, rotate, and safely revoke evaluation users |
+| [Architecture](docs/architecture.md) | Trust model, layers, and evidence scope |
+| [Secure MQTT Core](recipes/secure-mqtt-core/README.md) | Recipe and REST API reference |
+| [Troubleshooting](docs/troubleshooting.md) | Common setup and runtime issues |
+| [Contributing](CONTRIBUTING.md) | Public-repository contribution scope |
 
 ## License
 
-TrailMQ is distributed under a **proprietary evaluation license**. It is free for
-personal learning, local demos, and non-production technical evaluation —
-including running the referenced backend and frontend **Docker images** locally.
-Production use, commercial use, managed hosting, redistribution, or use as a
-customer-facing service requires a separate commercial agreement.
+TrailMQ is distributed under a proprietary evaluation license. It is free for
+personal learning, local demos, and non-production technical evaluation.
+Production, commercial, managed-hosting, redistribution, and customer-facing
+use require a separate agreement.
 
-See [LICENSE](LICENSE). Commercial contact: **contact@trailmq.com** · [trailmq.com](https://trailmq.com)
+See [LICENSE](LICENSE). Commercial contact: **contact@trailmq.com** ·
+[trailmq.com](https://trailmq.com)

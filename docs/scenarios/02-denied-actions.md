@@ -25,7 +25,7 @@ mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
 Connection error: Connection Refused: not authorised.
 ```
 
-Rejected at CONNECT. The failed attempt is recorded (Web UI → Evidence,
+Rejected at CONNECT. The failed attempt is recorded (Web UI → Activity,
 `GET /api/v1/audit/auth`).
 
 ## Denial 2 — forbidden namespace
@@ -78,7 +78,7 @@ publishes to `public/#` at the same time. The subscription itself was denied:
 
 | Where | What you see |
 | ----- | ------------ |
-| Web UI → **Evidence** | Recorded auth/deny events in the timeline — filter **Outcome → Blocked** |
+| Web UI → **Activity** | Recorded auth/deny events in the timeline — filter **Outcome → Denied** |
 | `./trailmq logs backend \| grep -E 'ACLMon\|AuthMon'` | Every allow/deny decision with user, role, action, topic |
 | `GET /api/v1/audit/auth` | Authentication audit events via REST |
 

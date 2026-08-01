@@ -105,8 +105,9 @@ Print the current generated login:
 ./trailmq credentials
 ```
 
-If the files are missing, run `./trailmq quickstart` again. To rotate local
-evaluation passwords, delete the `.pwd` files and launch again.
+If the files are missing, run `./trailmq quickstart` again. For an intentional
+credential rotation, follow [Access management](access-management.md) so the
+runtime user database and password files do not drift apart.
 
 ## Backend keeps restarting ("password policy violation" in the logs)
 
@@ -133,6 +134,16 @@ rm recipes/secure-mqtt-core/secrets/testadmin.pwd \
 
 `./trailmq doctor` detects this case.
 
+## A removed user can still sign in
+
+The default recipe uses `authsyncmode: "merge"`. At startup, configured users
+are merged into the runtime database. Removing a YAML block or password file
+does not delete an identity already persisted there.
+
+Treat this as an access-lifecycle issue, not a stale-cache symptom. Remove the
+config declaration and delete the persisted user through the REST API by
+following [Revoke an evaluation user](access-management.md#revoke-an-evaluation-user).
+
 ## Publish "succeeds" but nothing arrives
 
 Most likely the topic namespace denied the action. Only `public/#` is open to
@@ -150,6 +161,21 @@ the broker's decision log:
 Also note: a subscriber's first received message is usually TrailMQ's policy
 handshake on `trailmq/handshake/<client-id>`, not your data. Filter it with
 `mosquitto_sub … -T 'trailmq/#'`.
+
+## Preview counters do not match live MQTT traffic
+
+Use an MQTT subscriber or `./trailmq verify` as the delivery check. The public
+Preview is a review-oriented surface, and its Overview/Integrations counters
+are not the canonical proof that a message was delivered.
+
+For a denied action, inspect **Activity** and the broker decision log:
+
+```bash
+./trailmq logs backend | grep -E 'ACLMon|AuthMon'
+```
+
+For an allowed action, confirm that the intended subscriber received the exact
+topic and payload.
 
 ## Stack starts but API calls fail
 

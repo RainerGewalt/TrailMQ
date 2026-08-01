@@ -164,6 +164,13 @@ cors:
     - Content-Disposition
   allow_credentials: true
 
+# User synchronization mode.
+#
+# "merge" creates/synchronizes configured users at backend startup, but a user
+# already persisted in the runtime database is NOT revoked merely by removing
+# that user's block above or deleting its password file. For safe offboarding,
+# first remove the config declaration, then delete the runtime user through the
+# REST API. See the repository guide: docs/access-management.md.
 authsyncmode: "merge"
 log_level: "info"
 log_path: "logs"

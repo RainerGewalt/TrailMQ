@@ -1,8 +1,22 @@
-# Quickstart
+# Quickstart: from clone to a verified MQTT decision
 
-This page exists for people who don't want to read the whole README.
+This is the shortest path to a successful TrailMQ evaluation. It starts the
+stack, proves one allowed and one blocked MQTT action, and shows you where to
+review the result.
 
-## 30 seconds
+## Before you start
+
+You need:
+
+- Docker 20.10 or newer;
+- Docker Compose v2 (`docker compose`, not the legacy `docker-compose`);
+- Bash on Linux, macOS, or WSL;
+- internet access for the first Docker image pull.
+
+You do **not** need a local MQTT client for the automated proof. TrailMQ uses a
+temporary Docker client when `mosquitto_pub` and `mosquitto_sub` are absent.
+
+## 1. Start the evaluation stack
 
 ```bash
 git clone https://github.com/RainerGewalt/TrailMQ.git
@@ -10,103 +24,112 @@ cd TrailMQ
 ./trailmq quickstart
 ```
 
-It selects `Secure MQTT Core`, generates local demo certificates, creates
-evaluation credentials, and starts Docker Compose. Wait for Docker to pull
-images. Done.
+On the first run, Docker may need a few minutes to download the images. The
+launcher then:
 
-Open **http://localhost/trailmq/** in your browser.
+1. selects the `secure-mqtt-core` recipe;
+2. creates local self-signed certificates;
+3. creates a JWT secret;
+4. generates local passwords for `testadmin` and `testuser`;
+5. starts the Docker Compose stack.
 
-Then let TrailMQ prove itself:
+All generated state is gitignored.
+
+## 2. Run the decision proof
 
 ```bash
 ./trailmq verify
 ```
 
-Seven checks in about 30 seconds: an authorized publish is delivered, an
-unauthorized one is blocked, the denial is recorded with user and role, and
-the audit chain still validates. Exits non-zero if anything fails, so you can
-use it as a smoke test.
+After the images are available, this normally takes about 30 seconds. It exits
+non-zero when a check fails, so it also works as a local smoke test.
 
-Next: [why this isn't just a broker](scenarios/00-why-not-just-a-broker.md),
-the [scenarios](scenarios/), or [connect your own
-client](connect-a-client.md).
-
-## What just happened
-
-`./trailmq quickstart` did five things:
-
-1. Selected the `secure-mqtt-core` recipe and marked it as active
-2. Generated a local self-signed CA + server certificate
-3. Generated a 64-character JWT secret
-4. Generated local evaluation passwords for `testadmin` and `testuser`
-5. Ran `docker compose up -d` inside `recipes/secure-mqtt-core/`
-
-State lives in two places:
-
-- `.trailmq/active-recipe` — tracks which recipe is active
-- `recipes/secure-mqtt-core/` — everything else (config, certs, data, logs)
-
-All runtime data is gitignored. The repo stays clean.
-
-## Logging in
-
-The evaluation users are declared in
-[`recipes/secure-mqtt-core/config.yaml`](../recipes/secure-mqtt-core/config.yaml).
-Their generated passwords are stored in:
+Expected result:
 
 ```text
-recipes/secure-mqtt-core/secrets/testadmin.pwd
-recipes/secure-mqtt-core/secrets/testuser.pwd
+[PASS] Runtime ready
+[PASS] MQTT TLS listener accepts authenticated clients
+[PASS] Authorized publish reached the subscriber   public/demo/temperature
+[PASS] Unauthorized publish was blocked            restricted/ops/config
+[PASS] Denial recorded with user, role, action and topic
+[PASS] REST API authentication issues a token
+[PASS] System/action audit chain intact
+
+7/7 checks passed
 ```
 
-They exist for local evaluation only. Rotate or remove them before any
-non-local deployment.
+This is the core product proof: authenticated traffic flows, unauthorized
+traffic is blocked, the reason is attributable, and the recorded system/action
+history still forms a valid hash chain.
 
-Print the generated login again at any time:
+## 3. Review the result
+
+Print the generated login and local endpoints:
 
 ```bash
 ./trailmq credentials
+./trailmq open
 ```
 
-## Stopping and starting again
+Open **http://localhost/trailmq/**, log in as `testadmin`, open **Activity**,
+and filter for **Outcome: Denied**.
+
+The Evaluation Preview is a review-first UI. Use the REST API and
+`recipes/secure-mqtt-core/config.yaml` for changes such as creating a governed
+topic or adding a role.
+
+## What was created
+
+| Path | Purpose |
+| --- | --- |
+| `.trailmq/active-recipe` | remembers the selected recipe |
+| `recipes/secure-mqtt-core/certs/` | generated local CA and server certificate |
+| `recipes/secure-mqtt-core/secrets/` | generated JWT secret and evaluation passwords |
+| `recipes/secure-mqtt-core/data/` | runtime database and state |
+| `recipes/secure-mqtt-core/logs/` | local logs |
+| `recipes/secure-mqtt-core/audit-archive/` | archived audit material |
+
+Do not commit or share generated credentials, private keys, runtime databases,
+or audit exports.
+
+## Your next useful step
+
+| If you want to… | Continue with |
+| --- | --- |
+| understand the differentiator | [Why not just use a broker?](scenarios/00-why-not-just-a-broker.md) |
+| send data from your own code | [Connect an MQTT client](connect-a-client.md) |
+| test authorization failures | [Denied by design](scenarios/02-denied-actions.md) |
+| govern a new namespace | [Govern a namespace](scenarios/03-governed-namespace.md) |
+| test history integrity | [Tamper evidence](scenarios/04-tamper-evidence.md) |
+| understand current limits | [Evaluation boundaries](../README.md#evaluation-boundaries) |
+
+## Daily commands
 
 ```bash
-./trailmq down      # stops the stack, keeps data
-./trailmq start     # starts it back up
-./trailmq status    # shows what's running
-./trailmq logs      # tails the logs
-./trailmq reset     # wipes data, keeps the recipe
+./trailmq status       # runtime and audit status
+./trailmq logs         # follow stack logs
+./trailmq down         # stop, keep local data
+./trailmq start        # start or repair the setup
+./trailmq reset        # remove runtime data, keep certs and credentials
 ```
 
-## Something's off?
+`reset` asks for confirmation. `purge` removes all generated state for the
+active recipe, including certificates and credentials.
+
+## If something fails
+
+Run the built-in diagnosis first:
 
 ```bash
 ./trailmq doctor
 ```
 
-Doctor checks Docker, the active recipe, config, certs, secrets, and ports.
+For port conflicts, certificate problems, credential-policy errors, and
+delivery symptoms, see [Troubleshooting](troubleshooting.md).
 
-## Port conflict?
+## Security note about user removal
 
-If port `80` or `8883` is already in use, copy `.env.example` to `.env` and
-choose different host ports:
-
-```bash
-cp .env.example .env
-```
-
-```env
-TRAILMQ_HTTP_PORT=8080
-TRAILMQ_MQTT_TLS_PORT=8884
-```
-
-Then start again with `./trailmq start`.
-
-## Using your own certificates
-
-Drop `server_cert.pem`, `server_key.pem`, and `ca_cert.pem` into
-`recipes/secure-mqtt-core/certs/`. The stack picks them up on the next
-`./trailmq start`.
-
-If you later want to regenerate demo certs, run `./trailmq certs` — it asks
-before overwriting.
+The evaluation uses `authsyncmode: "merge"`. Removing a user from
+`config.yaml` does not by itself remove a user already stored in the runtime
+database. Use [Access management](access-management.md) when adding, rotating,
+or revoking an evaluation identity.

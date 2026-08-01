@@ -5,7 +5,8 @@ create a topic that grants specific roles, prove the grant works, inspect the
 effective configuration, and verify the audit chain.
 
 **What you learn:** outside `public/#` and `restricted/#`, nothing moves
-until an admin explicitly says so — and that decision is itself recorded.
+until an admin explicitly says so — and the governance action and access
+decisions remain reviewable.
 
 Requires `curl` and `jq` in addition to the mosquitto clients.
 
@@ -107,26 +108,28 @@ curl -sS "http://localhost/api/v1/topics/by-name/factory/line-1/temperature/effe
 This is the *effective* runtime configuration — what the broker actually
 enforces on this path, not just what was requested.
 
-## 6. Verify the audit chain
+## 6. Verify the system/action audit chain
 
-The topic creation and the traffic are recorded as hash-linked audit entries.
-Check that the chain is intact:
+The topic creation and related system/action events are recorded as hash-linked
+audit entries. Check that this chain is intact:
 
 ```bash
 curl -sS "http://localhost/api/v1/audit/validatechain/details" \
   -H "Authorization: Bearer ${TOKEN}" | jq '{valid, checkedEntries, issues}'
 ```
 
-`"valid": true` means every stored entry still links to its predecessor with
-a matching SHA-256 hash — local tampering with recorded entries would show up
-here. (This is a local integrity check, not an external anchor or signature.)
+`"valid": true` means every entry in the system/action audit store still links
+to its predecessor with a matching SHA-256 hash — local tampering with those
+records would show up here. This is a local integrity check, not an external
+anchor or signature. Topic-level message capture is separate; this endpoint
+does not claim to validate every MQTT payload.
 
 ## 7. See it in the Web UI
 
-Open **http://localhost/trailmq/** as `testadmin` and open **Evidence**: the
-whole sequence is recorded — the denied attempt (filter **Outcome →
-Blocked**), the topic creation (**Created**) and the client sessions of the
-allowed publish.
+Open **http://localhost/trailmq/** as `testadmin` and open **Activity**. Review
+the denied attempt (filter **Outcome → Denied**), the topic creation
+(**Created**), and the related client sessions. The Preview is a system/action
+review surface; do not expect it to act as a payload browser.
 
 ## Clean up (optional)
 

@@ -1,81 +1,152 @@
-# Architecture
+# Architecture and trust model
 
-TrailMQ separates three concerns that most MQTT products conflate:
+TrailMQ combines three concerns at the MQTT boundary:
 
-1. **Transport** — moving messages between clients
-2. **Enforcement** — deciding which messages are allowed, by whom, under which constraints
-3. **Evidence** — recording an immutable, verifiable record of every decision
+1. **Transport** — accept standard MQTT clients and move allowed messages.
+2. **Enforcement** — authenticate identities and apply role plus namespace
+   policy before an action proceeds.
+3. **Evidence** — preserve attributable system actions and decisions in a
+   hash-linked record that can be checked later.
 
-Most brokers do (1) well and treat (2) and (3) as bolt-ons. TrailMQ is built
-from the evidence layer outwards.
+The product is useful when all three must be evaluated together. If you only
+need message transport, a conventional broker is usually the simpler choice.
 
-## The flow
+## Request flow
 
 ```text
-MQTT Message
-    ↓
-TrailMQ Core            transport + authentication
-    ↓
-Policy Decision         enforcement (who, what, how)
-    ↓
-Audit Evidence          cryptographically chained record
-    ↓
-Plugins add context     decision trace, historical context, KPIs
+MQTT client
+    │
+    │ TLS / WebSocket, username + password
+    ▼
+Transport and authentication
+    │ known identity and roles
+    ▼
+Role permission check
+    │ publish/subscribe + MQTT topic filter
+    ▼
+Namespace/topic ACL check
+    │ allowed role on this path
+    ├── allow ──▶ broker action proceeds
+    └── deny  ──▶ action is blocked
+                    │
+                    ▼
+             decision evidence
 ```
 
-Each layer has one job, writes an audit entry when it runs, and hands off to
-the next. A policy denial is not a log line — it is an evidence block linked
-to the previous block.
+Both authorization checks must allow the action. This distinction matters: a
+role with `publish:*` still cannot publish into an unknown namespace until a
+topic ACL grants that role.
 
-## What's in the box today
+The evaluation defaults are:
 
-The `secure-mqtt-core` recipe contains the first three layers:
+- `public/#` — open to known roles, still subject to their action permissions;
+- `restricted/#` — admin only;
+- all other namespaces — denied until explicitly governed.
 
-- **Transport**: TLS MQTT broker (port 8883), WebSocket MQTT (via nginx at `/mqtt`)
-- **Enforcement**: role-based access control, topic permissions, rate limits
-- **Evidence**: cryptographic audit chain, archival on disk, export endpoints
+## Components in the current recipe
 
-The fourth layer — **Plugins** — is the extension path. See
-[`plugins/catalog.yaml`](../plugins/catalog.yaml) for planned plugins.
+The `secure-mqtt-core` recipe contains:
 
-## Why recipes?
+| Component | Responsibility |
+| --- | --- |
+| Backend | MQTT over TLS, MQTT WebSocket, REST API, authentication, policy enforcement, persistence, audit functions |
+| Frontend | Review-oriented Evaluation Preview |
+| nginx | Local reverse proxy for the Web UI, REST API, and MQTT WebSocket |
+| `config.yaml` | Roles, configured users, TLS, origins, queue, and audit settings |
+| SQLite runtime state | Persisted users, topics, policies, queues, and audit data |
 
-A recipe bundles a specific combination of Core features and Plugins into a
-ready-to-run stack. You don't "configure TrailMQ" — you pick a recipe that
-matches your goal.
+Clients do not need a TrailMQ SDK, proxy, or sidecar. They connect to the
+backend with standard MQTT libraries.
+
+## What the evidence chain proves
+
+The system/action audit chain links each entry to the hash of its predecessor.
+If an existing linked entry is edited without rebuilding the subsequent chain,
+validation detects the mismatch.
+
+This provides **local tamper evidence**. It does not make the database
+physically immutable and is not, by itself:
+
+- an external timestamp, signature, or notarization service;
+- WORM storage;
+- proof that every MQTT payload is included;
+- proof of completeness outside the configured capture paths;
+- a compliance certification.
+
+`./trailmq verify` and `/api/v1/audit/validatechain` validate the
+**system/action audit chain**. Topic-level message auditing is a separate
+capture path; do not infer that the same endpoint validates or exposes every
+message payload. The [tamper-evidence scenario](scenarios/04-tamper-evidence.md)
+demonstrates the exact scope of the public check.
+
+## Why decisions are first-class records
+
+Operational and review questions are usually about decisions, not just
+connections:
+
+- Who tried to publish to a sensitive namespace?
+- Which role and action were evaluated?
+- Was the attempt allowed or blocked?
+- Which effective topic settings applied?
+- Has the recorded system/action history changed afterwards?
+
+TrailMQ keeps identity, authority, requested action, topic, and outcome close to
+the enforcement point so an evaluator does not have to reconstruct the basic
+decision from unrelated files and broker logs.
+
+## Configuration state and runtime state
+
+The recipe uses files for declared configuration and a database for runtime
+state. They are related but not interchangeable.
+
+```text
+.env                         host ports and image selection
+config.yaml                  declared product configuration
+runtime database             persisted operational and identity state
+certs/ and secrets/          local TLS and credential material
+```
+
+In particular, `authsyncmode: "merge"` merges configured users into runtime
+state at startup. Omitting a previously created user from `config.yaml` does
+not delete that runtime identity. See [Access management](access-management.md)
+for the safe revocation procedure.
+
+## Why recipes are deployment units
+
+A recipe bundles a working combination of configuration, services, and
+capabilities:
 
 ```text
 recipes/
-├── secure-mqtt-core/            baseline — what you run for secure, audited MQTT
-├── coming-soon/                 placeholders for planned recipes
+├── secure-mqtt-core/   available evaluation stack
+└── coming-soon/        documented product direction, not runnable releases
 ```
 
-Each recipe is self-contained: its own Docker Compose file, its own config,
-its own certs and data directories. Running two recipes side-by-side will
-not work out of the box (they compete for ports and container names) —
-that's deliberate, because recipes are meant to be the whole deployment
-unit, not components you mix.
+Each recipe owns its Compose definition, configuration, certificates, secrets,
+data, logs, and audit archive. The launcher tracks one active recipe. Running
+multiple recipes side by side requires manual port, container-name, and state
+isolation and is not the default evaluation path.
 
-## Why the audit chain matters
+## Deliberate product boundaries
 
-Regulated environments don't ask "is the broker running?" They ask:
+TrailMQ is not intended to replace:
 
-- *At 14:03 last Tuesday, who published to that topic, and who authorized it?*
-- *Prove that this sequence of messages was delivered in order.*
-- *Show me the decision record for every denied connection in the last 30 days.*
+- an IoT device-provisioning or firmware-management platform;
+- a Grafana-style telemetry dashboard;
+- a general-purpose payload data lake;
+- organizational identity governance and approval processes;
+- compliance validation for the complete deployed system.
 
-TrailMQ answers these by producing an append-only chain where each entry
-references the hash of the previous one. You don't "search the logs" —
-you verify the chain and export the relevant slice.
+The Evaluation Preview is also not the full operations workspace. It focuses on
+reviewing status, records, decisions, users, and roles. Operational changes use
+the REST API and configuration in the public evaluation package.
 
-## What TrailMQ is not
+## Continue evaluating
 
-- **Not a dashboard.** No real-time gauges, no Grafana-style panels. The Web
-  UI is a read-focused evidence viewer.
-- **Not a payload inspector.** TrailMQ records *that* a message was published,
-  by whom, under which policy — not the payload contents.
-- **Not a generic IoT platform.** No device provisioning, firmware updates,
-  or tenant management.
-
-These are deliberate omissions. Every feature TrailMQ adds must fit the
-audit-first model; otherwise it lives outside the product.
+- [Quickstart](quickstart.md) — start and verify the stack.
+- [Connect an MQTT client](connect-a-client.md) — apply the two-gate access
+  model from real clients.
+- [Guided scenarios](scenarios/README.md) — exercise governance, queues, QoS,
+  denials, and tamper detection.
+- [Secure MQTT Core reference](../recipes/secure-mqtt-core/README.md) — inspect
+  the recipe and REST API.

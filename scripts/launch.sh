@@ -236,8 +236,8 @@ ${C_BOLD}Next step — prove it actually works${C_RESET}
   ${C_GREEN}./trailmq verify${C_RESET}
 
   ${C_DIM}Runs 7 checks in ~30 seconds: an authorized publish is delivered, an
-  unauthorized one is blocked, the denial is recorded, the audit chain
-  validates. That is the difference to a plain MQTT broker.${C_RESET}
+  unauthorized one is blocked, the denial is recorded, the system/action audit
+  chain validates. That is the difference to a plain MQTT broker.${C_RESET}
 
 ${C_BOLD}Then${C_RESET}
   Open ${C_CYAN}$(trailmq_http_base_url)/trailmq/${C_RESET} and log in as ${C_BOLD}testadmin${C_RESET}

@@ -11,8 +11,9 @@
 # Remember: a role permission alone does not open a namespace. The broker
 # also checks the topic/namespace ACL — "public/#" is open to all known
 # roles, "restricted/#" is admin-only, and every other namespace is
-# deny-by-default until a topic grants roles via accessControl/allowedRoles
-# (Web UI or POST /api/v1/topics).
+# deny-by-default until a topic grants roles via accessControl/allowedRoles.
+# In the Evaluation Preview package, create that grant with
+# POST /api/v1/topics (see docs/scenarios/03-governed-namespace.md).
 
 # Full administrator:
 #

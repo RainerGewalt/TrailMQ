@@ -10,8 +10,8 @@ was verified against a running system — including the outputs.
 It runs the same commands against a standard MQTT broker and against TrailMQ
 and lets the difference speak for itself. Everything else builds on that.
 
-**Want the 30-second version?** `./trailmq verify` proves the core claim
-automatically.
+**Want the shortest version?** After the images are available,
+`./trailmq verify` proves the core claim automatically in about 30 seconds.
 
 ## The question each scenario answers
 

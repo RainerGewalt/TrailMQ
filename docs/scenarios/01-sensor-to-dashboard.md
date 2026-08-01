@@ -2,10 +2,11 @@
 
 **Goal:** a machine sensor (`testuser`, role `publisher`) publishes a
 temperature reading; a dashboard (`testadmin`) receives it live; TrailMQ
-records the whole exchange.
+records the decisions and session around the exchange.
 
 **What you learn:** the `public/#` namespace is open to all authenticated
-roles out of the box, and every connect and message leaves a reviewable trace.
+roles out of the box, and connection/authentication activity leaves a
+reviewable system/action trace.
 
 ## 1. Set up shell variables
 
@@ -49,7 +50,7 @@ namespace check, routing, TLS out.
 ## 4. See what TrailMQ recorded
 
 Open **http://localhost/trailmq/** and log in as `testadmin`, then open
-**Evidence**: the client connects, the authentication decisions and the
+**Activity**: the client connects, the authentication decisions and the
 session lifecycle are recorded events in the timeline, each labeled with how
 it was captured.
 
@@ -57,6 +58,10 @@ it was captured.
 
 The same records are available through the REST API — see the
 [Secure MQTT Core walkthrough](../../recipes/secure-mqtt-core/README.md).
+
+The Preview is not a payload browser. Delivery proof in this scenario is the
+payload received by the MQTT subscriber; the Evidence view supplies the
+surrounding system/action record.
 
 ## Why did this work?
 

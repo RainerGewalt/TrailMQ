@@ -235,10 +235,10 @@ Recipe     ${ACTIVE_RECIPE}
 Checked    $(date -u +%Y-%m-%dT%H:%M:%SZ)${C_RESET}
 
 ${C_BOLD}That is the difference${C_RESET}
-  A plain broker would have accepted or dropped those messages silently.
-  TrailMQ decided, enforced the decision, and kept a reviewable record.
+  The result is more than a running broker: TrailMQ applied the configured
+  access rules, blocked the unauthorized action, and kept its decision record.
 
-  See it in the UI: ${C_CYAN}$(trailmq_http_base_url)/trailmq/${C_RESET} → ${C_BOLD}Evidence${C_RESET} → filter ${C_BOLD}Outcome: Blocked${C_RESET}
+  See it in the UI: ${C_CYAN}$(trailmq_http_base_url)/trailmq/${C_RESET} → ${C_BOLD}Activity${C_RESET} → filter ${C_BOLD}Outcome: Denied${C_RESET}
   Login: ${C_BOLD}testadmin${C_RESET} (password: ./trailmq credentials)
 
 ${C_BOLD}Go deeper${C_RESET}
