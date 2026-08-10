@@ -28,7 +28,12 @@ allow/deny/evidence proof.
 | --- | --- | --- |
 | backend | `rainergewalt/trailmq-backend:3.1.0` | MQTT, REST API, policy enforcement, persistence, audit |
 | frontend | `rainergewalt/trailmq-frontend:3.1.0` | Evaluation Preview |
-| nginx | `nginx:stable-alpine` | Local reverse proxy |
+| nginx | `nginxinc/nginx-unprivileged:1.27-alpine` (digest-pinned) | Local reverse proxy |
+
+All three containers run as a non-root user with every Linux capability dropped,
+`no-new-privileges` set and a read-only root filesystem. The only writable paths
+are `/tmp` and, for the backend, the bind mounts listed under
+[Configuration and state](#configuration-and-state).
 
 | Surface | Default address | Override |
 | --- | --- | --- |
