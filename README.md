@@ -2,7 +2,7 @@
 
 [![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
 [![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
-[![Release](https://img.shields.io/badge/published%20release-3.0.0-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
+[![Release](https://img.shields.io/badge/published%20release-3.1.0-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
 [![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
 [![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#release-quality-and-security)
 
@@ -131,14 +131,11 @@ commercial fit require the corresponding TrailMQ edition and agreement.
 
 This is the public, Docker-first evaluation package for TrailMQ.
 
-**What you get today is `3.0.0`.** That is what the recipe pulls, and it is what is
-published on Docker Hub. Everything below describes that version.
+**What you get today is `3.1.0`.** That is what the recipe pulls, and it is what is
+published on Docker Hub and GHCR. Everything below describes that version.
 
-A **3.1.0 Technical Preview** exists. It is built and verified, and it is **not
-publicly obtainable** — the images are not on Docker Hub, and this repository does not
-contain the source to build them. There is no tag you can pin that will produce it. If
-you want to evaluate it before it is published, ask for guided access:
-**contact@trailmq.com**.
+`3.0.0` is still on Docker Hub if you need to pin the previous release — see
+[.env.example](.env.example).
 
 The product reports its own build on the **Access** page and in `./trailmq verify`, so
 you can always tell which one you are looking at.
@@ -311,12 +308,34 @@ Treat test counts, signatures, image digests, SBOMs, and attestations as
 evidence for the specific release tag you evaluate. Security reports follow
 [SECURITY.md](SECURITY.md).
 
-That paragraph describes `3.0.0`, the release you can obtain. It does **not** yet
-describe the 3.1.0 Technical Preview: the automated pipeline is currently unavailable
-to this project, so the preview candidate has been verified locally and has no
-pipeline-produced signature, digest or attestation. It is not published, and it will
-not be published until it can go through the same gate as every release before it.
-Saying so is the same standard this product asks of its own evidence.
+**What that means for `3.1.0`, precisely.** The images were built and pushed by that
+pipeline, carry an SBOM and `mode=max` provenance, and are signed keyless with cosign;
+the signatures were verified in the same run against a certificate identity pinned to
+the release workflow. You can repeat that verification yourself:
+
+```bash
+cosign verify \
+  --certificate-identity-regexp '^https://github.com/RainerGewalt/MQTrail/\.github/workflows/release\.yml@refs/(tags|heads)/.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  rainergewalt/trailmq-backend:3.1.0
+```
+
+The published 3.1.0 digests are
+`sha256:f6b1df74c22463e3c159ef590bac82915c59d67485d902967edb6bd7d8e019a9` (backend) and
+`sha256:1886412c066b8175c5fe2e3e54d5ac277a432d05ac9df3a638cfe6c7a99b0246` (frontend),
+identical on Docker Hub and GHCR.
+
+The automated quality gate, however, **refused** this commit, and it was published on a
+recorded release-owner decision rather than on a passing gate. The refusal was not a
+product finding: it was caused by end-to-end scenarios that never executed, because a
+localhost-only test-administration endpoint failed under load, and by a backend test
+that races its own counters. The audit-immutability contract executed and passed in
+that same validation run, and no required audit evidence was lost. The remaining
+load-test findings are capacity limits and test-harness accounting, documented per
+scenario in the source project and scheduled for `3.1.1`.
+
+Stating this is the same standard this product asks of its own evidence: a gate that
+refused should be reported as having refused, not quietly reclassified as a pass.
 
 ## Editions
 

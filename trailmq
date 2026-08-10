@@ -160,8 +160,8 @@ case "$cmd" in
 
   version|--version|-v)
     echo "TrailMQ CLI — Docker-first distribution launcher"
-    echo "Backend image:  ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:3.0.0}"
-    echo "Frontend image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:3.0.0}"
+    echo "Backend image:  ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:3.1.0}"
+    echo "Frontend image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:3.1.0}"
     ;;
 
   menu|help|--help|-h)

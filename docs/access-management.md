@@ -8,7 +8,7 @@ and that `curl` and `jq` are installed.
 
 ## Understand the two user states
 
-TrailMQ 3.0.0 starts with `authsyncmode: "merge"` in
+TrailMQ 3.1.0 starts with `authsyncmode: "merge"` in
 `recipes/secure-mqtt-core/config.yaml`.
 
 ```text

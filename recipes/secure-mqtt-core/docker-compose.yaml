@@ -7,10 +7,10 @@
 #   TRAILMQ_BACKEND_IMAGE, TRAILMQ_FRONTEND_IMAGE, TRAILMQ_NGINX_IMAGE
 #   TRAILMQ_HTTP_PORT, TRAILMQ_MQTT_TLS_PORT
 #
-# The defaults below stay on 3.0.0 because that is what is published. 3.1.0 is built
-# and validated but not yet on Docker Hub, and a default naming a tag that does not
-# exist remotely gives a first-time user a pull failure instead of a product. Move both
-# defaults to 3.1.0 in the same change that publishes the images — not before.
+# The defaults below name 3.1.0, which is published on Docker Hub and GHCR and
+# signed. A default must never name a tag that does not exist remotely — that gives
+# a first-time user a pull failure instead of a product — so these move only in step
+# with publication, which is what happened here.
 
 networks:
   trailmq-net:
@@ -21,7 +21,7 @@ services:
   # TrailMQ Backend
   # ------------------------------------------------------------
   backend:
-    image: ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:3.0.0}
+    image: ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:3.1.0}
     container_name: trailmq-backend
     restart: unless-stopped
     ports:
@@ -65,7 +65,7 @@ services:
   # TrailMQ Frontend
   # ------------------------------------------------------------
   frontend:
-    image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:3.0.0}
+    image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:3.1.0}
     container_name: trailmq-frontend
     restart: unless-stopped
     expose:

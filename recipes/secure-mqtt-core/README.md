@@ -1,6 +1,6 @@
 # Secure MQTT Core
 
-`secure-mqtt-core` is the runnable TrailMQ 3.0.0 evaluation recipe. It combines
+`secure-mqtt-core` is the runnable TrailMQ 3.1.0 evaluation recipe. It combines
 standard MQTT transport, two-stage authorization, queue/policy controls, a
 review-oriented UI, and a hash-linked system/action audit record.
 
@@ -26,8 +26,8 @@ allow/deny/evidence proof.
 
 | Service | Default image | Responsibility |
 | --- | --- | --- |
-| backend | `rainergewalt/trailmq-backend:3.0.0` | MQTT, REST API, policy enforcement, persistence, audit |
-| frontend | `rainergewalt/trailmq-frontend:3.0.0` | Evaluation Preview |
+| backend | `rainergewalt/trailmq-backend:3.1.0` | MQTT, REST API, policy enforcement, persistence, audit |
+| frontend | `rainergewalt/trailmq-frontend:3.1.0` | Evaluation Preview |
 | nginx | `nginx:stable-alpine` | Local reverse proxy |
 
 | Surface | Default address | Override |
@@ -64,8 +64,8 @@ cp .env.example .env
 ```env
 TRAILMQ_HTTP_PORT=8080
 TRAILMQ_MQTT_TLS_PORT=8884
-TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:3.0.0
-TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:3.0.0
+TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:3.1.0
+TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:3.1.0
 ```
 
 Restart with `./trailmq down` followed by `./trailmq start`.
