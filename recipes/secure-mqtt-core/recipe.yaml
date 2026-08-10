@@ -17,7 +17,7 @@ description: |
 images:
   backend: rainergewalt/trailmq-backend:3.1.0
   frontend: rainergewalt/trailmq-frontend:3.1.0
-  nginx: nginx:stable-alpine
+  nginx: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
 
 # Capabilities enabled in this recipe.
 features:
@@ -35,6 +35,8 @@ features:
 
 # Ports exposed to the host by default. Host ports can be changed through
 # TRAILMQ_HTTP_PORT and TRAILMQ_MQTT_TLS_PORT.
+# The proxy runs unprivileged and listens on 8080 inside its container; the host
+# port is unchanged.
 ports:
-  - { host: 80,    container: 80,   service: nginx,   name: "HTTP / Web UI" }
+  - { host: 80,    container: 8080, service: nginx,   name: "HTTP / Web UI" }
   - { host: 8883,  container: 8883, service: backend, name: "MQTT over TLS" }
