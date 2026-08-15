@@ -14,7 +14,11 @@ cmd="${1:-menu}"
 shift || true
 
 case "$cmd" in
-  quickstart|try)
+  try)
+    exec "${TRAILMQ_ROOT}/scripts/try.sh" "$@"
+    ;;
+
+  quickstart)
     exec "${TRAILMQ_ROOT}/scripts/launch.sh" --quickstart "$@"
     ;;
 
@@ -38,6 +42,23 @@ case "$cmd" in
   open)
     require_active_recipe
     print_access_points
+    # The URLs are printed first and unconditionally, so this command is still
+    # useful over SSH, in a container, or anywhere without a browser — opening
+    # one is a convenience on top, never a requirement.
+    ui_url="$(trailmq_http_base_url)/trailmq/"
+    if [ "${TRAILMQ_NO_BROWSER:-}" = "1" ]; then
+      :
+    elif open_url "${ui_url}"; then
+      echo
+      log_info "${C_DIM}Opening ${ui_url} in your browser…${C_RESET}"
+    else
+      echo
+      log_info "${C_DIM}No browser could be opened here — use the Web UI link above.${C_RESET}"
+    fi
+    ;;
+
+  connect)
+    exec "${TRAILMQ_ROOT}/scripts/connect.sh" "$@"
     ;;
 
   credentials|creds|login)
