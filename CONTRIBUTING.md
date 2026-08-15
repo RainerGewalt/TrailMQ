@@ -20,15 +20,32 @@ surface.
 
 ## Before opening a change
 
-Run these checks from the repository root when your change touches scripts or
-Compose files:
+Every pull request against `master` runs the public distribution gate. Run it
+yourself first, from the repository root:
 
 ```bash
-bash -n trailmq scripts/*.sh
-docker compose -f recipes/secure-mqtt-core/docker-compose.yaml config >/dev/null
+.github/scripts/check-distribution.sh
 ```
 
-If Docker is not available, mention that in the pull request or issue.
+It takes well under a minute and checks what this repository publishes: that the
+Compose stack parses and still honours the documented port overrides, that the
+launcher scripts are sound, that `recipe.yaml`, `nginx.conf`, `config.yaml` and
+Compose still agree about images and ports, that the hardened defaults are still
+declared, and that the documented first run is still reachable from a fresh
+clone.
+
+It needs Docker Compose v2 and `jq`. Nothing is started, built or published, and
+no image other than the pinned `shellcheck` linter is pulled.
+
+If your change touches the gate itself, also run its negative controls, which
+re-break the distribution one regression at a time and confirm each is caught:
+
+```bash
+.github/scripts/negative-controls.sh
+```
+
+If Docker is not available to you, say so in the pull request — CI will run the
+gate either way.
 
 ## Pull request scope
 

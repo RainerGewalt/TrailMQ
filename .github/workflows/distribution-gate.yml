@@ -1,0 +1,54 @@
+name: Distribution gate
+
+# The public distribution gate. It validates what this repository publishes —
+# Compose stack, launcher scripts, recipe metadata, hardened defaults and the
+# documented first run — and nothing else. It never pulls, starts, builds,
+# signs or publishes a runtime image, and it never contacts private
+# infrastructure. The implementation is tested in MQTrail; this gate only
+# defends the public distribution contract.
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distribution-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  distribution-gate:
+    name: distribution-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # Pinned to a commit, not a moving tag, for the same reason the recipe
+      # digest-pins its reverse proxy: a required check must not be able to run
+      # different third-party code than the one that was reviewed.
+      # 11d5960 is actions/checkout v4.4.0.
+      - name: Check out the pull request revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # The gate only reads the tree. It never needs to push or authenticate.
+          persist-credentials: false
+
+      # Recorded so a future failure caused by a runner-image upgrade is one
+      # log line away from being diagnosed rather than guessed at.
+      - name: Report the toolchain the gate ran against
+        run: |
+          docker compose version
+          jq --version
+          shellcheck --version | sed -n '2p'
+          bash --version | head -n1
+
+      - name: Validate the public distribution
+        run: .github/scripts/check-distribution.sh
+
+      - name: Prove the gate rejects real regressions
+        run: .github/scripts/negative-controls.sh
