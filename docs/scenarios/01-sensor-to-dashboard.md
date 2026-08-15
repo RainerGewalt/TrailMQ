@@ -54,13 +54,13 @@ Open **http://localhost/trailmq/** and log in as `testadmin`, then open
 session lifecycle are recorded events in the timeline, each labeled with how
 it was captured.
 
-![Evidence timeline after the demo traffic](../media/scenario-evidence.jpg)
+![TrailMQ Activity view showing the recorded timeline after the demo traffic, with each row labelled by how it was captured](../media/scenario-activity.jpg)
 
 The same records are available through the REST API — see the
 [Secure MQTT Core walkthrough](../../recipes/secure-mqtt-core/README.md).
 
 The Preview is not a payload browser. Delivery proof in this scenario is the
-payload received by the MQTT subscriber; the Evidence view supplies the
+payload received by the MQTT subscriber; the Activity view supplies the
 surrounding system/action record.
 
 ## Why did this work?

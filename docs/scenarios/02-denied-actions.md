@@ -82,7 +82,7 @@ publishes to `public/#` at the same time. The subscription itself was denied:
 | `./trailmq logs backend \| grep -E 'ACLMon\|AuthMon'` | Every allow/deny decision with user, role, action, topic |
 | `GET /api/v1/audit/auth` | Authentication audit events via REST |
 
-![Evidence filtered to blocked outcomes — the denied publish is a recorded event](../media/scenario-evidence-blocked.jpg)
+![TrailMQ Activity view filtered to denied outcomes, showing the refused publish with its actor, client, topic and reason](../media/preview-activity.jpg)
 
 Next: instead of being denied, grant a namespace properly →
 [Govern a namespace](03-governed-namespace.md).
