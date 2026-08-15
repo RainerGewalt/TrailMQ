@@ -22,6 +22,9 @@ recipes/*/secrets/*.pwd
 .env
 *.local
 
+# --- Release bundles — built on demand, never committed ---
+dist/
+
 # --- Editor / OS junk ---
 .DS_Store
 .idea/

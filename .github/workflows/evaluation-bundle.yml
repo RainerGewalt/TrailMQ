@@ -1,0 +1,111 @@
+name: Evaluation bundle
+
+# Builds the downloadable evaluation assets and attaches them to a GitHub
+# Release, so evaluating TrailMQ never requires git, a clone, or any knowledge
+# of this repository's layout.
+#
+# The bundle is generated from the tagged tree at release time and is never
+# committed. Like the distribution gate, this workflow pulls, starts, builds and
+# signs no runtime image, and contacts no private infrastructure.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "Revision to package (tag, branch or SHA)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evaluation-bundle-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Uploading assets to the release is the only step that needs more than
+    # read access, and it is scoped to this job rather than the workflow.
+    permissions:
+      contents: write
+
+    steps:
+      # Pinned to a commit for the same reason the distribution gate pins it:
+      # a workflow that produces a published artifact must not be able to run
+      # third-party code other than the one that was reviewed.
+      # 11d5960 is actions/checkout v4.4.0.
+      - name: Check out the revision to package
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.inputs.revision || github.ref }}
+          persist-credentials: false
+          # git archive resolves paths against the repository, so the full
+          # history is not needed — but tags must be present to package one.
+          fetch-depth: 0
+
+      # A bundle is a promise that the enclosed distribution works. Running the
+      # same gate that guards master means a release can never ship an asset
+      # the repository itself would have rejected.
+      - name: Validate the distribution being packaged
+        run: .github/scripts/check-distribution.sh
+
+      - name: Build the evaluation bundles
+        run: .github/scripts/build-evaluation-bundle.sh "${{ github.event.inputs.revision || github.sha }}" dist
+
+      # Cheap, and it catches the failure mode that matters: an archive whose
+      # launcher cannot be executed is a download that strands the user at the
+      # very first command.
+      - name: Check the bundle can actually be started
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          tar -xzf dist/TrailMQ-Evaluation-*.tar.gz -C "${work}"
+          root="$(find "${work}" -mindepth 1 -maxdepth 1 -type d)"
+
+          test -x "${root}/trailmq" || { echo "launcher is not executable"; exit 1; }
+          test -f "${root}/START-HERE.md" || { echo "START-HERE.md missing"; exit 1; }
+          test -f "${root}/recipes/secure-mqtt-core/docker-compose.yaml" || { echo "recipe missing"; exit 1; }
+
+          # Development-only paths must not travel with an evaluation download.
+          for unwanted in .github CONTRIBUTING.md; do
+            if [ -e "${root}/${unwanted}" ]; then
+              echo "bundle contains development-only path: ${unwanted}"
+              exit 1
+            fi
+          done
+
+          bash -n "${root}/trailmq"
+          for f in "${root}"/scripts/*.sh; do bash -n "$f"; done
+
+          # The launcher must answer without a recipe, a stack or a daemon —
+          # this is the first thing a downloader runs.
+          ( cd "${root}" && ./trailmq help >/dev/null )
+          echo "Bundle starts cleanly."
+
+      - name: Show what will be published
+        run: |
+          ls -l dist/
+          cat dist/SHA256SUMS
+
+      - name: Attach the bundles to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/* --clobber
+
+      # A manual run has no release to attach to, so the assets are kept as a
+      # workflow artifact instead — enough to inspect a bundle before tagging.
+      # 4cec3d8 is actions/upload-artifact v4.6.2.
+      - name: Keep the bundles for inspection
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        with:
+          name: evaluation-bundle
+          path: dist/
+          retention-days: 14
