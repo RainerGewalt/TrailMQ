@@ -16,6 +16,22 @@ You need:
 You do **not** need a local MQTT client for the automated proof. TrailMQ uses a
 temporary Docker client when `mosquitto_pub` and `mosquitto_sub` are absent.
 
+## The one-command version
+
+```bash
+git clone https://github.com/RainerGewalt/TrailMQ.git
+cd TrailMQ
+./trailmq try
+```
+
+`try` performs every step on this page in order — prerequisites, setup, start,
+readiness, the decision proof — then summarizes what TrailMQ allowed, what it
+refused, and why, and opens the Web UI.
+
+The rest of this page is the same sequence as separate, reproducible commands.
+Use it when you want each step's raw output, or when you are scripting the
+evaluation.
+
 ## 1. Start the evaluation stack
 
 ```bash

@@ -31,8 +31,40 @@ or WSL), and internet access for the first image pull.
 ```bash
 git clone https://github.com/RainerGewalt/TrailMQ.git
 cd TrailMQ
-./trailmq quickstart
-./trailmq verify
+./trailmq try
+```
+
+One command. It checks prerequisites, generates local credentials and demo
+certificates, starts the stack, waits for the broker, then makes TrailMQ decide
+twice — once where the client is allowed and once where it is not:
+
+```text
+✓ Authorized MQTT publish was delivered
+  testuser → public/demo/temperature → reached the subscriber
+
+✓ Restricted publish was refused
+  testuser → restricted/ops/config → blocked
+  because restricted/# is admin-only and testuser is not an admin
+
+✓ The refusal was recorded as an attributable decision
+  DENY user="testuser" roles=[publisher] action=publish
+       topic="restricted/ops/config" reason=acl_role_not_in_topic_scope
+
+✓ Evidence verified: system and action audit chain
+  1940 entries hash-checked, chain intact
+```
+
+Then it opens the Web UI. Nothing to configure first.
+
+### The same thing, as a reproducible check
+
+`try` runs no proof of its own — it sequences the two commands below and
+restates their result. Use these directly in CI or when you want the raw
+PASS/FAIL output:
+
+```bash
+./trailmq quickstart   # prepare and start the stack
+./trailmq verify       # the decision proof
 ```
 
 `quickstart` creates local evaluation credentials and certificates, then starts
@@ -59,13 +91,18 @@ The run takes about 30 seconds once the images are available. No local MQTT
 client is required; `verify` falls back to a temporary Docker client.
 
 ```bash
+./trailmq open          # open the Web UI (prints every endpoint too)
+./trailmq connect       # everything your own MQTT client needs, on one screen
 ./trailmq credentials   # print the generated local login
-./trailmq open          # print Web UI, REST, MQTT TLS and WebSocket endpoints
 ```
 
 Then open **http://localhost/trailmq/**, sign in as `testadmin`, open
 **Activity**, and filter **Outcome: Denied** to find the blocked publish with its
 reason attached.
+
+Prefer to be shown rather than to install? A 20-minute technical walkthrough, no
+sales deck — write to **contact@trailmq.com** with your broker, your use case,
+and the one thing you want to understand.
 
 If setup fails, run `./trailmq doctor` and see
 [Troubleshooting](docs/troubleshooting.md).
@@ -132,9 +169,10 @@ decision explanations — belong to the advanced workspace in TrailMQ Pro; see
 
 | Your goal | Start here | Typical time |
 | --- | --- | --- |
-| See the difference | `./trailmq quickstart` → `./trailmq verify` | ~5 min plus first image pull |
+| See the difference | `./trailmq try` | ~2 min plus first image pull |
+| Be shown it instead | **contact@trailmq.com** — 20-minute technical walkthrough | 20 min |
 | Compare it with a plain broker | [Scenario 0](docs/scenarios/00-why-not-just-a-broker.md) | ~5 min |
-| Connect your own application | [Connect an MQTT client](docs/connect-a-client.md) | ~10 min |
+| Connect your own application | `./trailmq connect` → [Connect an MQTT client](docs/connect-a-client.md) | ~10 min |
 | Test allow, deny, governance, and tamper detection | [Guided scenarios](docs/scenarios/README.md) | 10–30 min |
 | Evaluate architecture or API fit | [Architecture](docs/architecture.md) → [Secure MQTT Core](recipes/secure-mqtt-core/README.md) | as needed |
 
@@ -363,9 +401,11 @@ machine.
 
 | Command | Purpose |
 | --- | --- |
+| `./trailmq try` | Guided first run: set up, start, prove, open the Web UI |
+| `./trailmq connect` | Endpoint, credentials, CA and test topics for your own client |
 | `./trailmq quickstart` | Prepare and start the local evaluation stack |
 | `./trailmq verify` | Run the seven-check decision proof |
-| `./trailmq open` | Print local endpoints |
+| `./trailmq open` | Open the Web UI and print local endpoints |
 | `./trailmq credentials` | Print generated evaluation credentials |
 | `./trailmq status` | Show runtime and audit status |
 | `./trailmq doctor` | Diagnose Docker, config, certificates, credentials, and ports |
