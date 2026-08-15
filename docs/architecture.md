@@ -5,8 +5,9 @@ TrailMQ combines three concerns at the MQTT boundary:
 1. **Transport** — accept standard MQTT clients and move allowed messages.
 2. **Enforcement** — authenticate identities and apply role plus namespace
    policy before an action proceeds.
-3. **Evidence** — preserve attributable system actions and decisions in a
-   hash-linked record that can be checked later.
+3. **Evidence** — keep MQTT decisions attributable and reviewable, and preserve
+   system and administrative actions in a hash-linked record that can be checked
+   later.
 
 The product is useful when all three must be evaluated together. If you only
 need message transport, a conventional broker is usually the simpler choice.

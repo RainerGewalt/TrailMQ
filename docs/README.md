@@ -46,7 +46,8 @@ Review architecture and evaluation boundaries
 ```text
 Transport     accepts standard MQTT clients over TLS or WebSocket
 Enforcement   combines role permissions with namespace/topic policy
-Evidence      records system actions and decisions in a verifiable chain
+Evidence      keeps MQTT decisions reviewable and maintains a verifiable
+              hash-linked system/action audit chain
 ```
 
 The shortest useful summary is: TrailMQ makes MQTT access decisions at the
