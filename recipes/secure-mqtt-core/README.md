@@ -289,16 +289,16 @@ or merge sync may recreate it on restart. Follow the complete
 
 ## UI and API responsibilities
 
-The Evaluation Preview is optimized for reading and reviewing Overview,
-Integrations, Evidence, Admin, users, and roles. It is not the full operations
-workspace. Use the API or `config.yaml` for topic creation, policy changes, and
-identity lifecycle operations.
+The Evaluation Preview has four surfaces — Overview, Access, Clients and
+Activity. **Access** covers evaluation users and topic rules; everything else is
+read and review. It is not the full operations workspace, so use the API or
+`config.yaml` for the remaining policy and lifecycle operations.
 
 For delivery or enforcement proof, prefer:
 
 1. `./trailmq verify`;
 2. a real MQTT subscriber;
-3. decision details under Evidence or in `ACLMon`/`AuthMon` logs.
+3. decision details under Activity or in `ACLMon`/`AuthMon` logs.
 
 Do not treat a Preview counter alone as proof that a publish was delivered.
 

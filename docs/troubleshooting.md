@@ -165,7 +165,7 @@ handshake on `trailmq/handshake/<client-id>`, not your data. Filter it with
 ## Preview counters do not match live MQTT traffic
 
 Use an MQTT subscriber or `./trailmq verify` as the delivery check. The public
-Preview is a review-oriented surface, and its Overview/Integrations counters
+Preview is a review-oriented surface, and its Overview/Activity counters
 are not the canonical proof that a message was delivered.
 
 For a denied action, inspect **Activity** and the broker decision log:
