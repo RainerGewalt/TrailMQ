@@ -25,17 +25,11 @@ cd "${REPO_ROOT}"
 REVISION="${1:-HEAD}"
 OUT_DIR="${2:-${REPO_ROOT}/dist}"
 
-# Paths that exist for people who develop TrailMQ, not for people who evaluate
-# it. Shipping them makes the bundle look like a repository, which is the exact
-# impression this asset exists to avoid.
-DEV_ONLY=(
-  .github
-  CONTRIBUTING.md
-  .gitignore
-  # Registry page copy and packaging inputs maintain the public distribution.
-  # They are not something an evaluator running the stack has any use for.
-  distribution
-)
+# What a bundle contains, and how it differs from the repository, is defined
+# once in the staging script — which the distribution gate also runs, so a
+# bundle defect fails a pull request instead of a release.
+STAGE_BUNDLE=".github/scripts/stage-evaluation-bundle.sh"
+CHECK_LINKS=".github/scripts/check-bundle-links.sh"
 
 need() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -83,70 +77,15 @@ printf 'Building %s from %s\n' "${NAME}" "${REVISION}"
 mkdir -p "${STAGE}/${NAME}"
 git archive --format=tar "${REVISION}" | tar -x -C "${STAGE}/${NAME}"
 
-for path in "${DEV_ONLY[@]}"; do
-  rm -rf "${STAGE:?}/${NAME}/${path}"
-done
+"${REPO_ROOT}/${STAGE_BUNDLE}" "${STAGE}/${NAME}" "${VERSION}" || exit 1
 
-# ---------------------------------------------------------------------------
-# The one file that only exists in the bundle.
-#
-# Someone who downloaded a zip has not read the repository README and has no
-# reason to. This is the whole orientation they get, so it states the
-# requirement honestly — this bundle runs TrailMQ in Docker — and then gets out
-# of the way.
-# ---------------------------------------------------------------------------
-cat >"${STAGE}/${NAME}/START-HERE.md" <<EOF
-# TrailMQ ${VERSION} — evaluation bundle
-
-An MQTT broker that decides whether an action is allowed, enforces that
-decision, and keeps a reviewable record of it.
-
-## What you need
-
-- **Docker** 20.10 or newer, with **Docker Compose v2**
-  (\`docker compose version\` must work)
-- **Bash** — present on Linux and macOS; on Windows use WSL or Git Bash
-- Internet access for the first image pull (about 1 GB)
-
-This bundle runs TrailMQ in containers. It does not install anything on your
-system, register a service, or write outside this folder.
-
-## Start it
-
-\`\`\`bash
-./trailmq try
-\`\`\`
-
-That checks prerequisites, generates local credentials and demo certificates,
-starts the stack, and then makes TrailMQ decide twice — one MQTT publish that
-is allowed and one that is refused — before opening the Web UI.
-
-## Then
-
-\`\`\`bash
-./trailmq connect   # everything your own MQTT client needs, on one screen
-./trailmq verify    # the same proof as a reproducible PASS/FAIL run
-./trailmq reset     # back to a clean evaluation
-./trailmq help      # everything else
-\`\`\`
-
-## Remove it
-
-\`\`\`bash
-./trailmq purge     # stop containers and delete everything generated here
-\`\`\`
-
-Then delete this folder. Nothing remains outside it except the downloaded
-container images, which \`docker image rm\` removes.
-
-## Prefer to be shown?
-
-A 20-minute technical walkthrough, no sales deck — write to
-**contact@trailmq.com** with your broker, your use case, and the one thing you
-want to understand.
-
-Full documentation: \`README.md\` and \`docs/\`.
-EOF
+# A bundle whose documentation points at files it does not ship strands the
+# reader on the exact path this asset exists to provide. Checking the staged
+# content means a broken link cannot reach an archive at all.
+if ! "${REPO_ROOT}/${CHECK_LINKS}" "${STAGE}/${NAME}"; then
+  printf 'Refusing to package a bundle with unresolvable documentation links\n' >&2
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Archives

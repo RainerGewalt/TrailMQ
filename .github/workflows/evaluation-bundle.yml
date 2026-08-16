@@ -73,12 +73,18 @@ jobs:
           test -f "${root}/recipes/secure-mqtt-core/docker-compose.yaml" || { echo "recipe missing"; exit 1; }
 
           # Development-only paths must not travel with an evaluation download.
-          for unwanted in .github CONTRIBUTING.md; do
+          # The list comes from the staging script so this check cannot fall
+          # behind the definition it is verifying.
+          while IFS= read -r unwanted; do
+            [ -z "${unwanted}" ] && continue
             if [ -e "${root}/${unwanted}" ]; then
               echo "bundle contains development-only path: ${unwanted}"
               exit 1
             fi
-          done
+          done < <(.github/scripts/stage-evaluation-bundle.sh --dev-only-paths)
+
+          # The download must not send a reader to a page it does not carry.
+          .github/scripts/check-bundle-links.sh "${root}"
 
           bash -n "${root}/trailmq"
           for f in "${root}"/scripts/*.sh; do bash -n "$f"; done

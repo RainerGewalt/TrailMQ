@@ -703,6 +703,25 @@ while IFS= read -r doc; do
 done < <(git ls-files '*.md')
 [ "${broken}" -eq 0 ] && pass "All relative documentation links resolve"
 
+# A link can resolve in the repository and still be broken in the download,
+# because the bundle ships without the development and CI paths. Staging a
+# throwaway copy through the same script the builder uses means the bundle is
+# checked as a bundle here, at pull-request time, rather than at release time.
+bundle_view="$(mktemp -d)"
+if git ls-files -z | while IFS= read -r -d '' f; do
+  mkdir -p "${bundle_view}/$(dirname "${f}")" && cp -p "${f}" "${bundle_view}/${f}"
+done; then
+  staged_version="${RELEASE_VERSION:-0.0.0}"
+  if ! staging="$(.github/scripts/stage-evaluation-bundle.sh "${bundle_view}" "${staged_version}" 2>&1)"; then
+    fail "The evaluation bundle cannot be staged" "${staging}"
+  elif ! links="$(.github/scripts/check-bundle-links.sh "${bundle_view}" 2>&1)"; then
+    fail "Documentation links that resolve here would break in the bundle" "${links}"
+  else
+    pass "Bundle documentation is self-contained (${links})"
+  fi
+fi
+rm -rf "${bundle_view}"
+
 # --------------------------------------------------------------------------
 section "8. Registry surfaces"
 # --------------------------------------------------------------------------

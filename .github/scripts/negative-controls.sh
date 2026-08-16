@@ -278,6 +278,45 @@ control broken-script-syntax \
   bash -c "printf 'if [ 1 -eq 1 ]; then\n' >> scripts/doctor.sh"
 
 # ---------------------------------------------------------------------------
+printf "\n%sBundle self-containment%s\n" "${C_BOLD}" "${C_RESET}"
+# ---------------------------------------------------------------------------
+# The bundle is checked as a bundle, so its controls run against staged content
+# rather than through the distribution gate. The property under test is the one
+# a downloader experiences: a link in the download must lead somewhere.
+BUNDLE="${WORK}/bundle"
+cp -a "${PRISTINE}" "${BUNDLE}"
+BUNDLE_VERSION="$(scripts/release-contract.sh get version)"
+
+if .github/scripts/stage-evaluation-bundle.sh "${BUNDLE}" "${BUNDLE_VERSION}" >/dev/null 2>&1; then
+  if .github/scripts/check-bundle-links.sh "${BUNDLE}" >/dev/null 2>&1; then
+    ok "staged bundle: every relative link resolves inside the bundle"
+  else
+    bad "staged bundle: links do not resolve in freshly staged content" \
+      "$(.github/scripts/check-bundle-links.sh "${BUNDLE}" 2>&1 | head -n 5)"
+  fi
+
+  # Removal is what broke these links in the first place, so the fix has to be
+  # visible in the staged output rather than assumed.
+  if grep -rq 'https://github.com/RainerGewalt/TrailMQ/blob/master/CONTRIBUTING.md' "${BUNDLE}"; then
+    ok "staged bundle: links to stripped paths point at the canonical document"
+  else
+    bad "staged bundle: a link to a stripped path was not repointed"
+  fi
+
+  # And the check must actually be able to fail. A link checker that passes on
+  # a bundle with a missing document is not a check.
+  rm -f "${BUNDLE}/docs/troubleshooting.md"
+  if .github/scripts/check-bundle-links.sh "${BUNDLE}" >/dev/null 2>&1; then
+    bad "staged bundle: link check accepted a bundle with a missing document"
+  else
+    ok "missing-bundle-document: rejected — a removed target is reported"
+  fi
+else
+  bad "staged bundle: staging failed" \
+    "$(.github/scripts/stage-evaluation-bundle.sh "${BUNDLE}" "${BUNDLE_VERSION}" 2>&1 | head -n 5)"
+fi
+
+# ---------------------------------------------------------------------------
 printf "\n%sResult%s\n" "${C_BOLD}" "${C_RESET}"
 # ---------------------------------------------------------------------------
 if [ "${FAILED}" -eq 0 ]; then
