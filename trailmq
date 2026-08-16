@@ -180,9 +180,20 @@ case "$cmd" in
     ;;
 
   version|--version|-v)
-    echo "TrailMQ CLI — Docker-first distribution launcher"
-    echo "Backend image:  ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:3.1.0}"
-    echo "Frontend image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:3.1.0}"
+    # Versions come from release.yaml, never from a literal here. A launcher
+    # that names a release the recipe does not pull is the exact drift the
+    # release contract exists to make impossible.
+    contract="${TRAILMQ_ROOT}/scripts/release-contract.sh"
+    if ! release="$("${contract}" get version)"; then
+      log_err "Could not read the release version from release.yaml."
+      exit 1
+    fi
+    backend_version="$("${contract}" get runtime.backend)"
+    frontend_version="$("${contract}" get runtime.frontend)"
+
+    echo "TrailMQ ${release} — Docker-first distribution launcher"
+    echo "Backend image:  ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:${backend_version}}"
+    echo "Frontend image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:${frontend_version}}"
     ;;
 
   menu|help|--help|-h)

@@ -111,6 +111,55 @@ control invalid-compose \
   "does not parse" \
   bash -c "printf '  bogus:\n    image\n' >> ${COMPOSE}"
 
+# --- The release contract --------------------------------------------------
+# These are the controls that matter most for the contract's central claim:
+# that release.yaml is the source of version truth rather than a file that
+# happens to sit next to one.
+control contract-unreadable \
+  "release.yaml is not in the documented shape" \
+  bash -c "printf 'runtime:\n   backend: 3.1.0\n' >> release.yaml"
+
+control contract-unknown-key \
+  "declares a key no rule enforces" \
+  bash -c "printf 'laucher: 3.1.0\n' >> release.yaml"
+
+control contract-missing-key \
+  "missing a required key" \
+  sed -i "/^  ghcr: required$/d" release.yaml
+
+control contract-mixed-runtime \
+  "runtime.frontend does not name the release version" \
+  sed -i "s/^  frontend: 3.1.0$/  frontend: 3.0.0/" release.yaml
+
+# Compose drifting away from the contract is the drift this slice exists to
+# catch, and it must be reported against the contract — not against whatever
+# Compose happens to say.
+control contract-compose-drift \
+  "backend default does not name the release contract version" \
+  sed -i "s|rainergewalt/trailmq-backend:3.1.0}|rainergewalt/trailmq-backend:3.0.0}|" "${COMPOSE}"
+
+control contract-badge-drift \
+  "README release badge does not name the shipped release" \
+  sed -i "s|published%20release-3.1.0-blue|published%20release-3.0.0-blue|" README.md
+
+# A track declared with nothing behind it, and artifacts with no track
+# declared. Both directions have to fail, or 'null' means nothing.
+control contract-phantom-track \
+  "but nothing produces it" \
+  sed -i "s/^  windows_installer: null$/  windows_installer: 3.1.0/" release.yaml
+
+control contract-undeclared-track \
+  "declares no distribution.launcher, but its artifacts exist" \
+  bash -c "mkdir -p cmd/trailmq && printf 'package main\n' > cmd/trailmq/main.go"
+
+control contract-orphan-compatibility \
+  "disagree about existing" \
+  sed -i "s/^  compatible_with: null$/  compatible_with: 3.1.0/" release.yaml
+
+control contract-bad-surface \
+  "not a recognized release obligation" \
+  sed -i "s/^  docker: required$/  docker: maybe/" release.yaml
+
 # --- Stale recipe metadata -------------------------------------------------
 control stale-recipe-image \
   "recipe.yaml images.backend is stale" \

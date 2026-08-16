@@ -334,18 +334,28 @@ This package contains:
 
 - the `./trailmq` launcher and diagnostics;
 - the ready-to-run `secure-mqtt-core` Docker recipe;
+- [`release.yaml`](release.yaml), the release contract naming every component
+  version that belongs to this release;
 - configuration examples and guided scenarios;
 - the documentation needed to evaluate and connect TrailMQ.
+
+`release.yaml` is the reason the version above can be trusted. The Compose
+defaults, the recipe metadata, the badge at the top of this file, the evaluation
+bundle and `./trailmq version` are all checked against it, so there is exactly
+one place a release version is decided rather than five places that have to be
+remembered. It states composition only — no image digests, no checksums, no
+signature status, because none of those are knowable until after the release is
+built and published.
 
 The backend and frontend are delivered as signed Docker images. Their source is
 not included in this repository, and the evaluation license does not permit
 production or commercial use.
 
 Every change to this package is gated: pull requests must pass the
-[distribution gate](.github/workflows/distribution-gate.yml), which checks Compose
-validity, image and port consistency, the hardened container defaults, the
-launcher scripts, and that the documented first run is still reachable from a
-fresh clone.
+[distribution gate](.github/workflows/distribution-gate.yml), which checks the
+release contract, Compose validity, image and port consistency, the hardened
+container defaults, the launcher scripts, and that the documented first run is
+still reachable from a fresh clone.
 
 ## Release quality and security
 

@@ -172,10 +172,167 @@ else
 fi
 
 # --------------------------------------------------------------------------
-section "3. Image references and version consistency"
+section "3. Release contract"
 # --------------------------------------------------------------------------
-# The Compose default for the backend is the single source of truth: it is what
-# a user who sets no environment variable actually pulls.
+# release.yaml declares what belongs to this release. Everything downstream —
+# Compose defaults, recipe metadata, the README badge, the launcher, the
+# evaluation bundle — is checked against it rather than against another
+# artifact that happens to be nearby.
+#
+# Tracks that do not exist yet are declared 'null', and that is enforced in
+# both directions: a declared track whose artifacts are missing fails, and
+# artifacts for an undeclared track fail too. That is what makes the launcher,
+# Windows packaging and the demo scenario pack become mandatory contract
+# entries the day their first file lands.
+#
+# About the paths below. Only evaluation_bundle points at something that
+# exists. The other three are reserved locations, not a decision about how
+# those tracks will be built — a Go launcher under cmd/trailmq is the likely
+# shape, but nothing here depends on that being true. The enforced rule is the
+# both-directions one above; the path is only how this gate notices a track has
+# appeared. Building a track somewhere else is a one-line edit here, and the
+# negative controls will say so immediately if the edit is forgotten.
+#
+# Order matters: the paths are listed, not iterated from an associative array,
+# so the gate output is identical on every run.
+TRACKS=(
+  "distribution.evaluation_bundle|.github/scripts/build-evaluation-bundle.sh"
+  "distribution.launcher|cmd/trailmq"
+  "distribution.windows_installer|packaging/windows"
+  "demo.scenario_pack|scenarios"
+)
+
+REQUIRED_CONTRACT_KEYS=(
+  version
+  runtime.backend
+  runtime.frontend
+  distribution.evaluation_bundle
+  distribution.launcher
+  distribution.windows_installer
+  demo.scenario_pack
+  demo.compatible_with
+  public_surfaces.docker
+  public_surfaces.ghcr
+  public_surfaces.website.download
+  public_surfaces.website.demo
+)
+
+CONTRACT_VERSION=""
+CONTRACT_FLAT=""
+
+cget() {
+  printf '%s\n' "${CONTRACT_FLAT}" |
+    awk -F'\t' -v k="$1" '$1 == k { print $2; found = 1; exit } END { exit !found }'
+}
+
+if [ ! -f release.yaml ]; then
+  fail "release.yaml is missing" \
+    "the release contract is the source of version truth for this repository"
+elif ! CONTRACT_FLAT="$(scripts/release-contract.sh flatten 2>&1)"; then
+  fail "release.yaml is not in the documented shape" "${CONTRACT_FLAT}"
+  CONTRACT_FLAT=""
+else
+  pass "release.yaml reads in the documented shape"
+
+  # A typo'd key is the failure this catches: 'laucher: 3.1.0' would otherwise
+  # parse fine, declare nothing, and be enforced by no rule at all.
+  missing=0
+  for key in "${REQUIRED_CONTRACT_KEYS[@]}"; do
+    if ! cget "${key}" >/dev/null; then
+      fail "release.yaml is missing a required key" "${key}"
+      missing=$((missing + 1))
+    fi
+  done
+  while IFS= read -r key; do
+    [ -z "${key}" ] && continue
+    known=false
+    for required in "${REQUIRED_CONTRACT_KEYS[@]}"; do
+      [ "${key}" = "${required}" ] && known=true && break
+    done
+    ${known} || fail "release.yaml declares a key no rule enforces" "${key}"
+  done < <(printf '%s\n' "${CONTRACT_FLAT}" | cut -f1)
+  [ "${missing}" -eq 0 ] &&
+    pass "release.yaml declares all ${#REQUIRED_CONTRACT_KEYS[@]} required keys"
+
+  CONTRACT_VERSION="$(cget version || true)"
+  if [[ "${CONTRACT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    pass "release contract names version ${CONTRACT_VERSION}"
+  else
+    fail "release.yaml version is not a release version" "got '${CONTRACT_VERSION}'"
+    CONTRACT_VERSION=""
+  fi
+
+  # Backend and frontend ship as one release. A mixed pair is a combination
+  # nothing was tested against.
+  for component in backend frontend; do
+    declared="$(cget "runtime.${component}" || true)"
+    if [ -n "${CONTRACT_VERSION}" ] && [ "${declared}" = "${CONTRACT_VERSION}" ]; then
+      pass "runtime.${component} names the release version"
+    else
+      fail "runtime.${component} does not name the release version" \
+        "runtime.${component} '${declared}', version '${CONTRACT_VERSION}'"
+    fi
+  done
+
+  for entry in "${TRACKS[@]}"; do
+    track="${entry%%|*}"
+    evidence="${entry#*|}"
+    declared="$(cget "${track}" || true)"
+
+    if [ "${declared}" = "null" ]; then
+      if [ -e "${evidence}" ]; then
+        fail "release.yaml declares no ${track}, but its artifacts exist" \
+          "${evidence} is present — declare ${track}: ${CONTRACT_VERSION:-<version>}"
+      else
+        pass "${track} is declared absent and has no artifacts"
+      fi
+    elif [ -n "${CONTRACT_VERSION}" ] && [ "${declared}" != "${CONTRACT_VERSION}" ]; then
+      fail "${track} does not name the release version" \
+        "${track} '${declared}', version '${CONTRACT_VERSION}'"
+    elif [ ! -e "${evidence}" ]; then
+      fail "release.yaml declares ${track} ${declared}, but nothing produces it" \
+        "expected ${evidence}"
+    else
+      pass "${track} ${declared} is produced by ${evidence}"
+    fi
+  done
+
+  # A scenario pack names the runtime it was written against, which is not
+  # automatically the current release — but it cannot be silent either way.
+  pack="$(cget demo.scenario_pack || true)"
+  compat="$(cget demo.compatible_with || true)"
+  if [ "${pack}" = "null" ] && [ "${compat}" = "null" ]; then
+    pass "no scenario pack is declared, and none claims compatibility"
+  elif [ "${pack}" = "null" ] || [ "${compat}" = "null" ]; then
+    fail "demo.scenario_pack and demo.compatible_with disagree about existing" \
+      "scenario_pack '${pack}', compatible_with '${compat}'"
+  elif [[ "${compat}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    pass "scenario pack ${pack} declares compatibility with runtime ${compat}"
+  else
+    fail "demo.compatible_with is not a runtime version" "got '${compat}'"
+  fi
+
+  # These name obligations this gate cannot verify — it never leaves the
+  # repository. Checking the vocabulary still stops an unreadable value from
+  # reaching the publication stage that does have to act on it.
+  for surface in public_surfaces.docker public_surfaces.ghcr \
+    public_surfaces.website.download public_surfaces.website.demo; do
+    value="$(cget "${surface}" || true)"
+    case "${value}" in
+      required | optional)
+        pass "${surface} is '${value}'" ;;
+      *)
+        fail "${surface} is not a recognized release obligation" \
+          "got '${value}', expected 'required' or 'optional'" ;;
+    esac
+  done
+fi
+
+# --------------------------------------------------------------------------
+section "4. Image references and version consistency"
+# --------------------------------------------------------------------------
+# What a user who sets no environment variable actually pulls has to be the
+# release the contract declares.
 CANONICAL_VERSION=""
 for dir in "${RECIPES[@]}"; do
   json="${COMPOSE_JSON[${dir}]:-}"
@@ -190,16 +347,24 @@ for dir in "${RECIPES[@]}"; do
   if [[ "${backend_image}" =~ ^rainergewalt/trailmq-backend:([0-9][A-Za-z0-9._-]*)$ ]]; then
     CANONICAL_VERSION="${BASH_REMATCH[1]}"
     pass "${dir}: backend default resolves to ${backend_image}"
+
+    if [ -n "${CONTRACT_VERSION}" ] && [ "${CANONICAL_VERSION}" != "${CONTRACT_VERSION}" ]; then
+      fail "${dir}: backend default does not name the release contract version" \
+        "Compose '${CANONICAL_VERSION}', release.yaml '${CONTRACT_VERSION}'"
+    fi
   else
     fail "${dir}: backend default image is not a pinned trailmq-backend tag" "got '${backend_image}'"
   fi
 
-  if [ -n "${CANONICAL_VERSION}" ] &&
-    [ "${frontend_image}" = "rainergewalt/trailmq-frontend:${CANONICAL_VERSION}" ]; then
-    pass "${dir}: frontend default matches the backend release (${CANONICAL_VERSION})"
+  # The contract is the authority. Falling back to the Compose tag only keeps
+  # the message useful in the run where the contract itself already failed.
+  expected_version="${CONTRACT_VERSION:-${CANONICAL_VERSION}}"
+  if [ -n "${expected_version}" ] &&
+    [ "${frontend_image}" = "rainergewalt/trailmq-frontend:${expected_version}" ]; then
+    pass "${dir}: frontend default matches the declared release (${expected_version})"
   else
-    fail "${dir}: frontend default does not match the backend release" \
-      "frontend '${frontend_image}', expected 'rainergewalt/trailmq-frontend:${CANONICAL_VERSION}'"
+    fail "${dir}: frontend default does not match the declared release" \
+      "frontend '${frontend_image}', expected 'rainergewalt/trailmq-frontend:${expected_version}'"
   fi
 
   # A moving tag would let the proxy change under a rebuild, which is exactly
@@ -252,19 +417,20 @@ for dir in "${RECIPES[@]}"; do
   fi
 done
 
-if [ -z "${CANONICAL_VERSION}" ]; then
-  fail "Could not determine the canonical release version from Compose"
+RELEASE_VERSION="${CONTRACT_VERSION:-${CANONICAL_VERSION}}"
+if [ -z "${RELEASE_VERSION}" ]; then
+  fail "Could not determine the release version from release.yaml or Compose"
 else
-  # Every place that names a TrailMQ image must name the release the recipe
-  # actually pulls. Two paths are excluded on purpose: .env.example documents
-  # pinning to an older published release, which is a supported user action
-  # rather than drift, and .github/scripts holds the deliberate counter-examples
-  # the negative controls inject.
+  # Every place that names a TrailMQ image must name the release being shipped.
+  # Two paths are excluded on purpose: .env.example documents pinning to an
+  # older published release, which is a supported user action rather than
+  # drift, and .github/scripts holds the deliberate counter-examples the
+  # negative controls inject.
   drift=0
   while IFS= read -r hit; do
     file="${hit%%:*}"
     tag="${hit##*:}"
-    if [ "${tag}" != "${CANONICAL_VERSION}" ]; then
+    if [ "${tag}" != "${RELEASE_VERSION}" ]; then
       fail "Stale TrailMQ image reference in ${file}" "${hit}"
       drift=$((drift + 1))
     fi
@@ -273,23 +439,31 @@ else
       . ':(exclude).env.example' ':(exclude).github/scripts'
   )
   if [ "${drift}" -eq 0 ]; then
-    # This scan already covers ./trailmq, which prints these same defaults for
-    # './trailmq version' — no separate check is needed for the CLI.
-    pass "All TrailMQ image references name ${CANONICAL_VERSION}"
+    pass "All TrailMQ image references name ${RELEASE_VERSION}"
   fi
 
   badge="$(sed -nE 's@.*img\.shields\.io/badge/published%20release-([^-]+)-.*@\1@p' README.md | head -n1)"
-  if [ "${badge}" = "${CANONICAL_VERSION}" ]; then
-    pass "README release badge names ${CANONICAL_VERSION}"
+  if [ "${badge}" = "${RELEASE_VERSION}" ]; then
+    pass "README release badge names ${RELEASE_VERSION}"
   else
     fail "README release badge does not name the shipped release" \
-      "badge '${badge}', Compose default '${CANONICAL_VERSION}'"
+      "badge '${badge}', release ${RELEASE_VERSION}"
   fi
 
+  # The launcher builds its image references from the contract, so this asks
+  # the CLI what it would actually tell a user rather than trusting that the
+  # wiring is still in place. It needs no Docker daemon and no active recipe.
+  cli_version="$(bash ./trailmq version 2>/dev/null | sed -nE 's/^TrailMQ ([0-9][^ ]*) .*/\1/p' | head -n1)"
+  if [ "${cli_version}" = "${RELEASE_VERSION}" ]; then
+    pass "'./trailmq version' reports ${RELEASE_VERSION}"
+  else
+    fail "'./trailmq version' does not report the shipped release" \
+      "CLI '${cli_version:-<no version line>}', release ${RELEASE_VERSION}"
+  fi
 fi
 
 # --------------------------------------------------------------------------
-section "4. Port and proxy wiring"
+section "5. Port and proxy wiring"
 # --------------------------------------------------------------------------
 for dir in "${RECIPES[@]}"; do
   json="${COMPOSE_JSON[${dir}]:-}"
@@ -394,7 +568,7 @@ for dir in "${RECIPES[@]}"; do
 done
 
 # --------------------------------------------------------------------------
-section "5. Hardened deployment invariants (declared configuration)"
+section "6. Hardened deployment invariants (declared configuration)"
 # --------------------------------------------------------------------------
 # These read the rendered Compose configuration. They prove what the published
 # deployment DECLARES. They do not prove effective runtime privileges, image
@@ -456,7 +630,7 @@ for dir in "${RECIPES[@]}"; do
 done
 
 # --------------------------------------------------------------------------
-section "6. Documented first run is still possible"
+section "7. Documented first run is still possible"
 # --------------------------------------------------------------------------
 # Directories the launcher creates before `docker compose up`. Anything Compose
 # bind-mounts must either be committed or appear here.

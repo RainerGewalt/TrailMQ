@@ -42,15 +42,29 @@ need() {
 }
 need git
 need tar
+need awk
 
-# The published Compose default is the single source of truth for the version,
-# the same one the distribution gate reads. Deriving it here keeps a bundle from
-# ever being named after a release it does not actually contain.
-compose_file="recipes/secure-mqtt-core/docker-compose.yaml"
-VERSION="$(sed -nE 's/.*rainergewalt\/trailmq-backend:([0-9][A-Za-z0-9._-]*)\}.*/\1/p' \
-  "${compose_file}" | head -n1)"
-if [ -z "${VERSION}" ]; then
-  printf 'Could not derive the release version from %s\n' "${compose_file}" >&2
+# The release contract names the version, the same one the distribution gate
+# reads. Taking it from there rather than from a Compose regex keeps a bundle
+# from ever being named after a release it does not actually contain — and
+# means a bundle cannot be built at all for a release nobody declared.
+CONTRACT="scripts/release-contract.sh"
+VERSION="$("${CONTRACT}" get distribution.evaluation_bundle)" || {
+  printf 'Could not read distribution.evaluation_bundle from release.yaml\n' >&2
+  exit 1
+}
+if [ "${VERSION}" = "null" ]; then
+  printf 'release.yaml declares no evaluation bundle for this release\n' >&2
+  exit 1
+fi
+
+# The gate already enforces this, but the builder is also run by hand. Failing
+# here costs one comparison and stops a mislabelled asset from being produced
+# on a machine that never ran the gate.
+RELEASE_VERSION="$("${CONTRACT}" get version)"
+if [ "${VERSION}" != "${RELEASE_VERSION}" ]; then
+  printf 'release.yaml is inconsistent: evaluation bundle %s, release %s\n' \
+    "${VERSION}" "${RELEASE_VERSION}" >&2
   exit 1
 fi
 
