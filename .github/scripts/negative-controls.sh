@@ -160,6 +160,40 @@ control contract-bad-surface \
   "not a recognized release obligation" \
   sed -i "s/^  docker: required$/  docker: maybe/" release.yaml
 
+# --- Registry surfaces -----------------------------------------------------
+# The registry page is where a stranger decides whether to pull the image, so
+# these guard the two ways it goes wrong: text that drifts from the release,
+# and text that describes a product surface which no longer exists.
+REGISTRY="distribution/registry"
+
+control registry-literal-version \
+  "contains a literal version" \
+  sed -i "s/{{version}}/3.1.0/" "${REGISTRY}/trailmq-backend.md"
+
+control registry-unknown-placeholder \
+  "uses an unknown placeholder" \
+  bash -c "printf '\nBuilt for {{relase}}.\n' >> ${REGISTRY}/trailmq-backend.md"
+
+control registry-missing-text \
+  "is published but has no canonical registry text" \
+  rm -f "${REGISTRY}/trailmq-frontend.md"
+
+control registry-missing-ghcr \
+  "does not name ghcr.io/rainergewalt/trailmq-backend" \
+  sed -i "/^Also published to GHCR/d" "${REGISTRY}/trailmq-backend.md"
+
+control registry-stale-surface \
+  "does not name the 'Activity' surface" \
+  sed -i "s/Activity/Events/g" "${REGISTRY}/trailmq-frontend.md"
+
+control registry-open-source-license \
+  "claims an open-source license" \
+  sed -i "s/^  licenses: LicenseRef-TrailMQ-Evaluation$/  licenses: MIT/" "${REGISTRY}/oci-labels.yaml"
+
+control registry-missing-label \
+  "OCI label 'vendor' is empty or missing" \
+  sed -i "/^  vendor: TrailMQ$/d" "${REGISTRY}/oci-labels.yaml"
+
 # --- Stale recipe metadata -------------------------------------------------
 control stale-recipe-image \
   "recipe.yaml images.backend is stale" \

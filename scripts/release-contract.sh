@@ -137,10 +137,12 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
       release_contract_get version
       ;;
     flatten)
-      release_contract_flatten
+      # An explicit file lets the same reader serve the other small YAML
+      # documents that share this shape, such as the OCI label spec.
+      release_contract_flatten "${2:-$(release_contract_file)}"
       ;;
     *)
-      printf 'usage: %s {get <dotted.path>|version|flatten}\n' "$0" >&2
+      printf 'usage: %s {get <dotted.path>|version|flatten [file]}\n' "$0" >&2
       exit 2
       ;;
   esac

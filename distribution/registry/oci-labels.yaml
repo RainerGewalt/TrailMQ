@@ -1,0 +1,48 @@
+# Canonical OCI image labels for the published TrailMQ images.
+#
+# Keys here are label suffixes: every one is emitted with the
+# `org.opencontainers.image.` prefix. `common` applies to both images;
+# `backend` and `frontend` add or override per image.
+#
+# Read with scripts/release-contract.sh, so the same small YAML subset applies:
+# two-space indentation, `key: value`, no lists.
+#
+# ---------------------------------------------------------------------------
+# Labels that are NOT here
+# ---------------------------------------------------------------------------
+#   version    from release.yaml at build time
+#   revision   the commit the image was built from
+#   created    the build timestamp
+#
+# All three are build-time facts. Writing them into a file that is edited by
+# hand is how a label ends up describing a build that never happened.
+# .github/scripts/render-registry.sh emits them alongside these.
+#
+# ---------------------------------------------------------------------------
+# Two deliberate choices
+# ---------------------------------------------------------------------------
+# `source` points at the public evaluation and distribution repository, not at
+# the code that builds the image, which is not public. The OCI spec describes
+# this label as the source to build from; here it names where the image is
+# documented, versioned and distributed. GHCR also uses it to link a package to
+# its repository, which is the behaviour being relied on. The deviation is
+# stated rather than hidden.
+#
+# `licenses` is a LicenseRef, not an SPDX identifier. TrailMQ is proprietary,
+# and stamping an OSI identifier on it to make tooling happier would be a false
+# statement about what a puller is allowed to do.
+
+common:
+  url: https://trailmq.com
+  source: https://github.com/RainerGewalt/TrailMQ
+  documentation: https://github.com/RainerGewalt/TrailMQ#readme
+  vendor: TrailMQ
+  licenses: LicenseRef-TrailMQ-Evaluation
+
+backend:
+  title: TrailMQ Backend
+  description: Policy-controlled MQTT runtime for industrial and regulated systems.
+
+frontend:
+  title: TrailMQ Frontend
+  description: Review and administration UI for the TrailMQ Evaluation Preview.

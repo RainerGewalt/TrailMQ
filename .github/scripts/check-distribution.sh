@@ -198,7 +198,7 @@ section "3. Release contract"
 TRACKS=(
   "distribution.evaluation_bundle|.github/scripts/build-evaluation-bundle.sh"
   "distribution.launcher|cmd/trailmq"
-  "distribution.windows_installer|packaging/windows"
+  "distribution.windows_installer|distribution/windows"
   "demo.scenario_pack|scenarios"
 )
 
@@ -702,6 +702,173 @@ while IFS= read -r doc; do
   done < <(grep -oE '\]\([^):]+\)' "${doc}" | sed -E 's/^\]\(//; s/\)$//' | grep -v '^#' | sort -u)
 done < <(git ls-files '*.md')
 [ "${broken}" -eq 0 ] && pass "All relative documentation links resolve"
+
+# --------------------------------------------------------------------------
+section "8. Registry surfaces"
+# --------------------------------------------------------------------------
+# Docker Hub and GHCR are the first TrailMQ page many people ever see, and for a
+# closed-source product they are a trust surface rather than a mirror of the
+# README. Their text lives in distribution/registry/ so it can be gated; what
+# cannot be gated from here — whether the page was actually updated — belongs to
+# the publication stage.
+REGISTRY_DIR="distribution/registry"
+LABELS_FILE="${REGISTRY_DIR}/oci-labels.yaml"
+KNOWN_PLACEHOLDERS="version backend_version frontend_version"
+
+# Components come from the contract, so adding a third published image makes
+# its registry surface mandatory without touching this gate.
+mapfile -t COMPONENTS < <(
+  printf '%s\n' "${CONTRACT_FLAT}" | cut -f1 | sed -n 's/^runtime\.//p' | sort
+)
+
+if [ "${#COMPONENTS[@]}" -eq 0 ]; then
+  fail "No published components found in the release contract" \
+    "expected at least one runtime.* entry"
+else
+  for component in "${COMPONENTS[@]}"; do
+    text="${REGISTRY_DIR}/trailmq-${component}.md"
+
+    if [ ! -f "${text}" ]; then
+      fail "${component} is published but has no canonical registry text" \
+        "expected ${text}"
+      continue
+    fi
+
+    # A literal version in registry text is a version nobody updates. This is
+    # the whole reason the placeholders exist.
+    literal="$(grep -nE '[0-9]+\.[0-9]+\.[0-9]+' "${text}" | head -n3)"
+    if [ -n "${literal}" ]; then
+      fail "${text} contains a literal version" \
+        "use a placeholder instead: $(printf '%s' "${literal}" | tr '\n' ' ')"
+    else
+      pass "${text} names no literal version"
+    fi
+
+    unknown=0
+    while IFS= read -r name; do
+      [ -z "${name}" ] && continue
+      case " ${KNOWN_PLACEHOLDERS} " in
+        *" ${name} "*) ;;
+        *)
+          fail "${text} uses an unknown placeholder" \
+            "{{${name}}} — known: ${KNOWN_PLACEHOLDERS}"
+          unknown=$((unknown + 1))
+          ;;
+      esac
+    done < <(grep -oE '\{\{[a-z_]+\}\}' "${text}" | sed -E 's/^\{\{|\}\}$//g' | sort -u)
+    [ "${unknown}" -eq 0 ] && pass "${text} uses only known placeholders"
+
+    # The rendered page is what a stranger reads, so the gate checks that
+    # artifact rather than the template it came from.
+    if ! rendered="$(.github/scripts/render-registry.sh text "${component}" 2>&1)"; then
+      fail "${component} registry text does not render" "${rendered}"
+      continue
+    fi
+
+    if [ -n "${RELEASE_VERSION}" ] &&
+      printf '%s' "${rendered}" | grep -qF "${RELEASE_VERSION}"; then
+      pass "${component} registry text renders naming ${RELEASE_VERSION}"
+    else
+      fail "${component} registry text renders without naming the release" \
+        "expected ${RELEASE_VERSION} to appear once rendered"
+    fi
+
+    # One text serves both registries, so it has to point at both. A page that
+    # names only Docker Hub is how the GHCR package ends up described
+    # differently.
+    for registry in "rainergewalt/trailmq-${component}" "ghcr.io/rainergewalt/trailmq-${component}"; do
+      if printf '%s' "${rendered}" | grep -qF "${registry}"; then
+        pass "${component} registry text names ${registry}"
+      else
+        fail "${component} registry text does not name ${registry}" \
+          "one text serves Docker Hub and GHCR — both pull paths belong in it"
+      fi
+    done
+
+    if grep -qF "This is a runtime image." "${text}"; then
+      pass "${component} registry text separates the runtime image from the evaluation package"
+    else
+      fail "${component} registry text does not mark the image as a runtime image" \
+        "a visitor who starts it standalone gets a broken container, not a product"
+    fi
+  done
+
+  # The Preview ships exactly these surfaces. Naming one that was removed, or
+  # omitting one that shipped, is the stale-surface problem this catches.
+  frontend_text="${REGISTRY_DIR}/trailmq-frontend.md"
+  if [ -f "${frontend_text}" ]; then
+    missing_surface=0
+    for surface in Overview Access Clients Activity; do
+      grep -qF "${surface}" "${frontend_text}" ||
+        {
+          fail "Frontend registry text does not name the '${surface}' surface"
+          missing_surface=$((missing_surface + 1))
+        }
+    done
+    [ "${missing_surface}" -eq 0 ] &&
+      pass "Frontend registry text names all four Preview surfaces"
+  fi
+fi
+
+# --- OCI labels ------------------------------------------------------------
+if [ ! -f "${LABELS_FILE}" ]; then
+  fail "${LABELS_FILE} is missing" "the published images have no canonical label set"
+elif ! labels_flat="$(scripts/release-contract.sh flatten "${LABELS_FILE}" 2>&1)"; then
+  fail "${LABELS_FILE} is not in the documented shape" "${labels_flat}"
+else
+  pass "${LABELS_FILE} reads in the documented shape"
+
+  for component in "${COMPONENTS[@]}"; do
+    if ! emitted="$(.github/scripts/render-registry.sh labels "${component}" 2>&1)"; then
+      fail "OCI labels for ${component} do not render" "${emitted}"
+      continue
+    fi
+
+    missing_label=0
+    for label in title description url source documentation vendor licenses \
+      version revision created; do
+      value="$(printf '%s\n' "${emitted}" |
+        sed -n "s|^org\.opencontainers\.image\.${label}=||p" | head -n1)"
+      if [ -z "${value}" ]; then
+        fail "${component}: OCI label '${label}' is empty or missing"
+        missing_label=$((missing_label + 1))
+        continue
+      fi
+
+      case "${label}" in
+        url | source | documentation)
+          [[ "${value}" == https://* ]] ||
+            {
+              fail "${component}: OCI label '${label}' is not an https URL" "got '${value}'"
+              missing_label=$((missing_label + 1))
+            }
+          ;;
+        version)
+          if [ -n "${RELEASE_VERSION}" ] && [ "${value}" != "${RELEASE_VERSION}" ]; then
+            fail "${component}: OCI version label does not name the release" \
+              "label '${value}', release ${RELEASE_VERSION}"
+            missing_label=$((missing_label + 1))
+          fi
+          ;;
+        licenses)
+          # TrailMQ is proprietary. An OSI identifier here would tell every
+          # scanner, and every reader, something untrue about what a puller
+          # may do with the image.
+          case "${value}" in
+            MIT | Apache-2.0 | BSD-2-Clause | BSD-3-Clause | ISC | Unlicense | \
+              GPL-2.0* | GPL-3.0* | LGPL-* | AGPL-* | MPL-2.0)
+              fail "${component}: OCI licenses label claims an open-source license" \
+                "got '${value}' — TrailMQ ships under a proprietary evaluation license"
+              missing_label=$((missing_label + 1))
+              ;;
+          esac
+          ;;
+      esac
+    done
+    [ "${missing_label}" -eq 0 ] &&
+      pass "${component}: OCI labels are complete and consistent with the release"
+  done
+fi
 
 # --------------------------------------------------------------------------
 section "Result"

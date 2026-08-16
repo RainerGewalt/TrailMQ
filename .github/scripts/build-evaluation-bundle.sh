@@ -32,6 +32,9 @@ DEV_ONLY=(
   .github
   CONTRIBUTING.md
   .gitignore
+  # Registry page copy and packaging inputs maintain the public distribution.
+  # They are not something an evaluator running the stack has any use for.
+  distribution
 )
 
 need() {
