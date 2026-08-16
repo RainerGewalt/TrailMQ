@@ -86,6 +86,30 @@ func readEnvFile(path string) map[string]string {
 	return out
 }
 
+// EnvOverrides returns the TRAILMQ_* assignments a child process needs, as
+// KEY=VALUE.
+//
+// Compose reads a .env file next to the Compose file, but TrailMQ's lives at
+// the installation root, one level up. Without this, a user who set
+// TRAILMQ_HTTP_PORT in .env would get a launcher printing one port and a stack
+// listening on another.
+func EnvOverrides(root string) []string {
+	fromFile := readEnvFile(filepath.Join(root, ".env"))
+
+	var out []string
+	for _, key := range []string{"TRAILMQ_HTTP_PORT", "TRAILMQ_MQTT_TLS_PORT",
+		"TRAILMQ_BACKEND_IMAGE", "TRAILMQ_FRONTEND_IMAGE", "TRAILMQ_NGINX_IMAGE"} {
+		if v := os.Getenv(key); v != "" {
+			out = append(out, key+"="+v)
+			continue
+		}
+		if v, ok := fromFile[key]; ok && v != "" {
+			out = append(out, key+"="+v)
+		}
+	}
+	return out
+}
+
 func (e Endpoints) httpBase() string {
 	if e.HTTPPort == DefaultHTTPPort {
 		return "http://localhost"

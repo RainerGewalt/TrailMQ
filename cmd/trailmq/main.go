@@ -65,6 +65,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdDoctor(out)
 	case "open":
 		return cmdOpen(out, errOut, rest)
+	case "status":
+		return cmdStatus(out, errOut)
+	case "quickstart":
+		return cmdQuickstart(out, errOut)
+	case "start":
+		return cmdStart(out, errOut)
+	case "stop":
+		return cmdStop(out, errOut)
 	case "help", "--help", "-h":
 		usage(out)
 		return exitOK
@@ -82,13 +90,21 @@ func usage(p *output.Printer) {
 	p.Title("Usage")
 	p.Println("  trailmq <command>")
 	p.Blank()
-	p.Title("Commands")
-	p.Field("version", "Show the release this launcher belongs to")
-	p.Field("doctor", "Check whether this machine can run TrailMQ")
+	p.Title("Start here")
+	p.Field("quickstart", "Prepare and start a local evaluation")
 	p.Field("open", "Open TrailMQ in your browser")
 	p.Blank()
-	p.Dim("Stack commands (quickstart, verify, connect) are still served by the")
-	p.Dim("./trailmq shell launcher in the evaluation package.")
+	p.Title("Operate")
+	p.Field("status", "Show what is running")
+	p.Field("start", "Start a prepared evaluation")
+	p.Field("stop", "Stop the stack and keep the data")
+	p.Blank()
+	p.Title("Diagnose")
+	p.Field("doctor", "Check whether this machine can run TrailMQ")
+	p.Field("version", "Show the release this launcher belongs to")
+	p.Blank()
+	p.Dim("The decision proof (verify) and client onboarding (connect) are still")
+	p.Dim("served by the ./trailmq shell launcher in the evaluation package.")
 }
 
 // loadContract resolves the release contract and the directory holding it.
