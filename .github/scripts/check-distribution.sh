@@ -179,27 +179,33 @@ section "3. Release contract"
 # evaluation bundle — is checked against it rather than against another
 # artifact that happens to be nearby.
 #
-# Tracks that do not exist yet are declared 'null', and that is enforced in
-# both directions: a declared track whose artifacts are missing fails, and
-# artifacts for an undeclared track fail too. That is what makes the launcher,
-# Windows packaging and the demo scenario pack become mandatory contract
-# entries the day their first file lands.
+# Declaration requires evidence; source presence does not require declaration.
 #
-# About the paths below. Only evaluation_bundle points at something that
-# exists. The other three are reserved locations, not a decision about how
-# those tracks will be built — a Go launcher under cmd/trailmq is the likely
-# shape, but nothing here depends on that being true. The enforced rule is the
-# both-directions one above; the path is only how this gate notices a track has
-# appeared. Building a track somewhere else is a one-line edit here, and the
-# negative controls will say so immediately if the edit is forgotten.
+# A track goes through implemented → packaged → released, and only the last
+# state belongs in the contract. Code for a launcher, an installer or a
+# scenario pack may exist here long before any release ships it, so the mere
+# presence of cmd/trailmq says nothing about what TrailMQ 3.1.0 contained.
 #
-# Order matters: the paths are listed, not iterated from an associative array,
+# What is checked is the other direction. Naming a version for a track means
+# claiming a published artifact exists, so the gate requires the four things
+# that claim depends on:
+#
+#   1. a build — the source or script the artifact is produced from;
+#   2. a workflow that publishes it when a release is published;
+#   3. a step in that workflow that verifies what it built;
+#   4. the version taken from release.yaml, not typed into the workflow.
+#
+# Each entry is track|build|release-workflow. The workflow file is allowed not
+# to exist yet — that is precisely what keeps a track undeclarable until
+# someone builds the thing that ships it.
+#
+# Order matters: entries are listed, not iterated from an associative array,
 # so the gate output is identical on every run.
 TRACKS=(
-  "distribution.evaluation_bundle|.github/scripts/build-evaluation-bundle.sh"
-  "distribution.launcher|cmd/trailmq"
-  "distribution.windows_installer|distribution/windows"
-  "demo.scenario_pack|scenarios"
+  "distribution.evaluation_bundle|.github/scripts/build-evaluation-bundle.sh|.github/workflows/evaluation-bundle.yml"
+  "distribution.launcher|cmd/trailmq|.github/workflows/launcher-release.yml"
+  "distribution.windows_installer|distribution/windows|.github/workflows/windows-installer.yml"
+  "demo.scenario_pack|scenarios|.github/workflows/scenario-pack.yml"
 )
 
 REQUIRED_CONTRACT_KEYS=(
@@ -276,25 +282,77 @@ else
 
   for entry in "${TRACKS[@]}"; do
     track="${entry%%|*}"
-    evidence="${entry#*|}"
+    remainder="${entry#*|}"
+    build="${remainder%%|*}"
+    workflow="${remainder#*|}"
     declared="$(cget "${track}" || true)"
 
     if [ "${declared}" = "null" ]; then
-      if [ -e "${evidence}" ]; then
-        fail "release.yaml declares no ${track}, but its artifacts exist" \
-          "${evidence} is present — declare ${track}: ${CONTRACT_VERSION:-<version>}"
+      # Source may exist. Work on a track is not a claim that a release
+      # shipped it, and treating it as one would mean a launcher could not be
+      # written without backdating it into an already-published release.
+      if [ -e "${build}" ]; then
+        pass "${track} is not part of this release (implementation present)"
       else
-        pass "${track} is declared absent and has no artifacts"
+        pass "${track} is not part of this release"
       fi
-    elif [ -n "${CONTRACT_VERSION}" ] && [ "${declared}" != "${CONTRACT_VERSION}" ]; then
+      continue
+    fi
+
+    if [ -n "${CONTRACT_VERSION}" ] && [ "${declared}" != "${CONTRACT_VERSION}" ]; then
       fail "${track} does not name the release version" \
         "${track} '${declared}', version '${CONTRACT_VERSION}'"
-    elif [ ! -e "${evidence}" ]; then
-      fail "release.yaml declares ${track} ${declared}, but nothing produces it" \
-        "expected ${evidence}"
-    else
-      pass "${track} ${declared} is produced by ${evidence}"
+      continue
     fi
+
+    if [ ! -e "${build}" ]; then
+      fail "release.yaml declares ${track} ${declared}, but nothing builds it" \
+        "expected ${build}"
+      continue
+    fi
+
+    if [ ! -f "${workflow}" ]; then
+      fail "release.yaml declares ${track} ${declared}, but nothing publishes it" \
+        "expected a release workflow at ${workflow} — a declared track is a claim that an artifact ships"
+      continue
+    fi
+
+    track_ok=true
+
+    # Published on release, not only when someone remembers to run it.
+    if ! grep -qE '^[[:space:]]*release:[[:space:]]*$' "${workflow}"; then
+      fail "${workflow} does not run when a release is published" \
+        "${track} is declared for ${declared}, so its artifact has to be produced by the release"
+      track_ok=false
+    fi
+
+    # Produces something. A workflow that builds and keeps nothing has not
+    # shipped the artifact the contract is promising.
+    if ! grep -qE 'release upload|upload-artifact' "${workflow}"; then
+      fail "${workflow} publishes no artifact" \
+        "expected a release upload or an artifact upload step"
+      track_ok=false
+    fi
+
+    # Verifies what it built. Checked by requiring the workflow to run one of
+    # this repository's own checks — an approximation of "a smoke test exists",
+    # and a deliberate one: a publish workflow that runs none of the checks
+    # this repository maintains is not verifying anything.
+    if ! grep -q '\.github/scripts/' "${workflow}"; then
+      fail "${workflow} verifies nothing it builds" \
+        "expected it to run at least one check from .github/scripts/"
+      track_ok=false
+    fi
+
+    # Takes the version from the contract rather than repeating it.
+    if ! grep -qE 'release-contract\.sh|release\.yaml' "${workflow}" &&
+      ! grep -qE 'release-contract\.sh|release\.yaml' "${build}" 2>/dev/null; then
+      fail "${track} ${declared} is versioned outside the release contract" \
+        "neither ${workflow} nor ${build} reads release.yaml"
+      track_ok=false
+    fi
+
+    ${track_ok} && pass "${track} ${declared} is built, published and verified"
   done
 
   # A scenario pack names the runtime it was written against, which is not

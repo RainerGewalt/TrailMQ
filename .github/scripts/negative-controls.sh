@@ -142,19 +142,32 @@ control contract-badge-drift \
   "README release badge does not name the shipped release" \
   sed -i "s|published%20release-3.1.0-blue|published%20release-3.0.0-blue|" README.md
 
-# A track declared with nothing behind it, and artifacts with no track
-# declared. Both directions have to fail, or 'null' means nothing.
-control contract-phantom-track \
-  "but nothing produces it" \
+# Declaring a track is a claim that a published artifact exists, so each thing
+# that claim depends on has to be individually enforceable. The opposite
+# direction is deliberately absent: source for an undeclared track is legal,
+# and the baseline run proves it — cmd/trailmq is present while
+# distribution.launcher is null, and the gate passes.
+control contract-track-without-build \
+  "but nothing builds it" \
   sed -i "s/^  windows_installer: null$/  windows_installer: 3.1.0/" release.yaml
 
-# Artifacts appearing for a track the contract still calls null. This has to
-# use a track that is genuinely undeclared — the launcher stopped being one the
-# day cmd/trailmq landed, which is exactly the transition the rule exists to
-# force.
-control contract-undeclared-track \
-  "declares no distribution.windows_installer, but its artifacts exist" \
-  bash -c "mkdir -p distribution/windows && printf 'installer\n' > distribution/windows/README.md"
+# The launcher is the real case: implemented, built and tested on every change,
+# but shipped by no release workflow. Declaring it must fail until one exists.
+control contract-track-without-publisher \
+  "but nothing publishes it" \
+  sed -i "s/^  launcher: null$/  launcher: 3.1.0/" release.yaml
+
+control contract-publisher-without-artifact \
+  "publishes no artifact" \
+  sed -i "/release upload/d; /upload-artifact/d" .github/workflows/evaluation-bundle.yml
+
+control contract-publisher-without-verification \
+  "verifies nothing it builds" \
+  sed -i "s|\.github/scripts/|unchecked/|g" .github/workflows/evaluation-bundle.yml
+
+control contract-publisher-off-release \
+  "does not run when a release is published" \
+  sed -i "/^  release:$/d" .github/workflows/evaluation-bundle.yml
 
 control contract-orphan-compatibility \
   "disagree about existing" \

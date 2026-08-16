@@ -28,19 +28,27 @@
 # ---------------------------------------------------------------------------
 # Lifecycle of a track
 # ---------------------------------------------------------------------------
-#   <version>   the track is part of this release and must name `version`
-#   null        the track does not exist yet
+#   <version>   the track is published as part of this release
+#   null        the track is not part of this release
 #
-# `null` is enforced in both directions. Declaring a track that has no
-# artifacts fails the gate, and adding artifacts for a track this file still
-# calls `null` fails it too. That is what makes a new track — the
-# cross-platform launcher, Windows packaging, the demo scenario pack — become
-# mandatory the day its first file lands, rather than the day someone
-# remembers this file exists.
+# A track moves through three states, and only the last one belongs here:
 #
-# Which files count as a track's artifacts is decided in the gate, not here, so
-# that this file stays a statement of composition. Those locations are reserved
-# rather than designed: see the TRACKS list in
+#   implemented   the code exists in this repository
+#   packaged      a build produces a distributable artifact from it
+#   released      that artifact is published as part of a release
+#
+# The rule is: **declaration requires evidence, source presence does not
+# require declaration.**
+#
+# Work can therefore start on a launcher, an installer or a scenario pack
+# without this file claiming a published release contains one. What is not
+# allowed is the reverse — naming a version here for a track that nothing
+# builds, publishes, or verifies. The gate checks that a declared track has a
+# build, a workflow that publishes it on release, a step that verifies what it
+# built, and a version taken from this file rather than typed into a workflow.
+#
+# Which evidence counts is decided in the gate, not here, so that this file
+# stays a statement of composition: see the TRACKS list in
 # .github/scripts/check-distribution.sh.
 
 version: 3.1.0
@@ -53,12 +61,12 @@ runtime:
 
 # What a user can download and run.
 #
-# The launcher is the cross-platform binary built from cmd/trailmq. It is
-# declared here because it belongs to this release, not because a built binary
-# is published yet — Windows packaging is a separate track and still null.
+# The launcher exists in cmd/trailmq and is built and tested on every change,
+# but no release publishes a binary yet, so it is not part of this release.
+# It becomes a version here when a workflow ships it.
 distribution:
   evaluation_bundle: 3.1.0
-  launcher: 3.1.0
+  launcher: null
   windows_installer: null
 
 # The scenario pack behind `./trailmq demo` and the website demo. Both are
