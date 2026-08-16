@@ -1,0 +1,134 @@
+name: Launcher
+
+# The cross-platform TrailMQ launcher. Windows is a first-class evaluation
+# platform, so it is a first-class CI platform: the same tests run on Windows
+# and Linux, and a change that only works on one of them fails here rather
+# than in someone's first five minutes with the product.
+#
+# Like the other workflows in this repository, this one pulls, starts, builds
+# and signs no runtime image, and contacts no private infrastructure.
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launcher-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      # Pinned to a commit, not a moving tag, for the same reason the
+      # distribution gate pins it: a required check must not be able to run
+      # different third-party code than the one that was reviewed.
+      # 11d5960 is actions/checkout v4.4.0.
+      - name: Check out the revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      # The runner's preinstalled Go is used on purpose. Adding setup-go would
+      # mean pinning another third-party action for a toolchain the image
+      # already ships, and the launcher targets whatever modern Go is current
+      # rather than one exact patch release. The version is logged so a future
+      # failure caused by a runner upgrade is one line away from diagnosis.
+      - name: Report the toolchain
+        run: go version
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "${unformatted}" ]; then
+            echo "These files are not gofmt-clean:"
+            echo "${unformatted}"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      # -race is Linux-only here: it needs a C toolchain, which the Windows
+      # runner has but at a cost in minutes that buys little for a program
+      # whose only concurrency is reaping one child process.
+      - name: Test
+        if: runner.os != 'Linux'
+        run: go test ./...
+
+      - name: Test with the race detector
+        if: runner.os == 'Linux'
+        run: go test -race ./...
+
+      # The launcher must answer without a Docker daemon, a recipe or a stack.
+      # These are the first commands anyone runs, including on a machine where
+      # nothing is set up yet.
+      - name: Run the launcher against the repository contract
+        shell: bash
+        run: |
+          go build -o trailmq-bin ./cmd/trailmq
+          ./trailmq-bin version
+          ./trailmq-bin open --print
+          ./trailmq-bin help
+
+          # doctor reports the environment; on a runner without Docker it is
+          # expected to say so and exit 3. Both outcomes are acceptable, a
+          # crash is not.
+          set +e
+          ./trailmq-bin doctor
+          code=$?
+          set -e
+          if [ "${code}" != "0" ] && [ "${code}" != "3" ]; then
+            echo "doctor exited ${code}, expected 0 (ready) or 3 (not ready)"
+            exit 1
+          fi
+
+  cross-compile:
+    name: cross-compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Report the toolchain
+        run: go version
+
+      # Every platform the launcher claims to support is built here, so a
+      # platform-specific compile error cannot wait until release packaging to
+      # be discovered.
+      - name: Build every target
+        run: |
+          set -euo pipefail
+          for target in \
+            windows/amd64 windows/arm64 \
+            linux/amd64 linux/arm64 \
+            darwin/amd64 darwin/arm64
+          do
+            os="${target%/*}"
+            arch="${target#*/}"
+            ext=""
+            [ "${os}" = "windows" ] && ext=".exe"
+            GOOS="${os}" GOARCH="${arch}" \
+              go build -trimpath -ldflags="-s -w" \
+              -o "build/trailmq-${os}-${arch}${ext}" ./cmd/trailmq
+            printf '  %-16s %s\n' "${target}" \
+              "$(du -h "build/trailmq-${os}-${arch}${ext}" | cut -f1)"
+          done

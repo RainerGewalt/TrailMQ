@@ -25,6 +25,13 @@ recipes/*/secrets/*.pwd
 # --- Release bundles — built on demand, never committed ---
 dist/
 
+# --- Launcher binaries — built from cmd/trailmq, never committed ---
+build/
+/trailmq-bin
+/trailmq-*-amd64
+/trailmq-*-arm64
+/trailmq-*.exe
+
 # --- Editor / OS junk ---
 .DS_Store
 .idea/

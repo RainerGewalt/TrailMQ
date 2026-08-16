@@ -148,9 +148,13 @@ control contract-phantom-track \
   "but nothing produces it" \
   sed -i "s/^  windows_installer: null$/  windows_installer: 3.1.0/" release.yaml
 
+# Artifacts appearing for a track the contract still calls null. This has to
+# use a track that is genuinely undeclared — the launcher stopped being one the
+# day cmd/trailmq landed, which is exactly the transition the rule exists to
+# force.
 control contract-undeclared-track \
-  "declares no distribution.launcher, but its artifacts exist" \
-  bash -c "mkdir -p cmd/trailmq && printf 'package main\n' > cmd/trailmq/main.go"
+  "declares no distribution.windows_installer, but its artifacts exist" \
+  bash -c "mkdir -p distribution/windows && printf 'installer\n' > distribution/windows/README.md"
 
 control contract-orphan-compatibility \
   "disagree about existing" \

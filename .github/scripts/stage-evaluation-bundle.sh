@@ -30,6 +30,12 @@ DEV_ONLY=(
   # Registry page copy and packaging inputs maintain the public distribution.
   # They are not something an evaluator running the stack has any use for.
   distribution
+  # Launcher sources. The bundle ships the shell launcher today and will ship
+  # a built binary once Windows packaging exists; either way, an evaluator
+  # should never need a Go toolchain, and shipping source implies they might.
+  cmd
+  internal
+  go.mod
 )
 
 if [ "${1:-}" = "--dev-only-paths" ]; then
