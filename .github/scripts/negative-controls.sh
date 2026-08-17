@@ -211,6 +211,36 @@ control registry-missing-label \
   "OCI label 'vendor' is empty or missing" \
   sed -i "/^  vendor: TrailMQ$/d" "${REGISTRY}/oci-labels.yaml"
 
+# --- Scenario pack ---------------------------------------------------------
+# Scenarios are what a stranger is shown. These guard the two ways that goes
+# wrong: a story the runner cannot execute, and a story describing a release
+# that has moved on.
+SCENARIO="scenarios/unauthorized-machine-command.json"
+
+control scenario-stale-compatibility \
+  "was written for another release" \
+  sed -i 's/"compatibleWith": "3.1.0"/"compatibleWith": "3.0.0"/' "${SCENARIO}"
+
+control scenario-missing-explanation \
+  "steps missing a headline, explanation or topic" \
+  sed -i '0,/"explanation":/s//"explanation": "",  "unused":/' "${SCENARIO}"
+
+control scenario-unknown-step-kind \
+  "steps with an unknown kind" \
+  sed -i 's/"kind": "publish_denied"/"kind": "publish_probably"/' "${SCENARIO}"
+
+control scenario-dangling-actor \
+  "refer to actors the scenario does not define" \
+  sed -i 's/"actor": "operator"/"actor": "nobody"/' "${SCENARIO}"
+
+control scenario-id-mismatch \
+  "id does not match the file name" \
+  sed -i 's/"id": "unauthorized-machine-command"/"id": "something-else"/' "${SCENARIO}"
+
+control scenario-invalid-json \
+  "is not valid JSON" \
+  bash -c "printf ',\n' >> ${SCENARIO}"
+
 # --- Stale recipe metadata -------------------------------------------------
 control stale-recipe-image \
   "recipe.yaml images.backend is stale" \

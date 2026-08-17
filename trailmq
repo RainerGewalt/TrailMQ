@@ -92,7 +92,11 @@ case "$cmd" in
     exec "${TRAILMQ_ROOT}/scripts/certs.sh" "$@"
     ;;
 
-  verify|proof|demo)
+  verify|proof)
+    # 'demo' used to alias this. It no longer does: the launcher binary uses
+    # 'demo' for scenario walkthroughs, which are a different thing from the
+    # PASS/FAIL proof, and one word meaning two things across the product is
+    # worse than a removed alias nothing documented.
     exec "${TRAILMQ_ROOT}/scripts/verify.sh" "$@"
     ;;
 

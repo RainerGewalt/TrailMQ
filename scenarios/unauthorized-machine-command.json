@@ -1,0 +1,51 @@
+{
+  "id": "unauthorized-machine-command",
+  "title": "Unauthorized machine command",
+  "audience": "Production, automation and quality",
+  "question": "What happens when someone tries to change a machine setting they are not allowed to change?",
+  "compatibleWith": "3.1.0",
+
+  "summary": "An operator panel on a filling line tries to write a new setpoint into a protected machine namespace. TrailMQ identifies the client, applies the access policy, refuses the command, and keeps an attributable record of the refusal.",
+
+  "topology": [
+    "Operator HMI (line 07)",
+    "TrailMQ",
+    "Protected machine control namespace"
+  ],
+
+  "actors": [
+    {
+      "key": "operator",
+      "client": "line07-hmi",
+      "identity": "testuser",
+      "description": "The operator panel on filling line 07"
+    }
+  ],
+
+  "steps": [
+    {
+      "id": "blocked-setpoint",
+      "kind": "publish_denied",
+      "actor": "operator",
+      "topic": "restricted/line07/control/setpoint",
+      "payload": "{\"setpoint\":78.5,\"unit\":\"degC\"}",
+      "headline": "Machine command blocked",
+      "explanation": "The connected operator panel is not permitted to write into the protected machine control namespace, so the command never reaches the machine.",
+      "technicalNote": "The publish is refused at the broker. TrailMQ does not acknowledge it, so the client learns the command did not take effect instead of assuming it did."
+    },
+    {
+      "id": "recorded-decision",
+      "kind": "decision_record",
+      "topic": "restricted/line07/control/setpoint",
+      "headline": "The refusal was recorded, with who and why",
+      "explanation": "The block is not just a dropped message. TrailMQ kept a record naming the client, the identity behind it, the action attempted, the topic, and the reason the policy refused it.",
+      "technicalNote": "The record carries the decision reason as the broker evaluated it, which is what makes a later review possible without reconstructing intent from raw traffic."
+    }
+  ],
+
+  "closing": {
+    "headline": "That is the difference",
+    "explanation": "A conventional broker can also reject this publish. What TrailMQ adds is that the refusal is attributable and reviewable afterwards: the same event is in Activity, with the identity, the topic and the reason attached.",
+    "next": "Open Activity and filter Outcome: Denied to find this refusal."
+  }
+}

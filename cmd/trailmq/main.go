@@ -77,6 +77,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdVerify(out, errOut, rest)
 	case "credentials", "creds":
 		return cmdCredentials(out, errOut)
+	case "demo":
+		return cmdDemo(out, errOut, rest)
 	case "help", "--help", "-h":
 		usage(out)
 		return exitOK
@@ -96,6 +98,7 @@ func usage(p *output.Printer) {
 	p.Blank()
 	p.Title("Start here")
 	p.Field("quickstart", "Prepare and start a local evaluation")
+	p.Field("demo", "Show what TrailMQ does, in a situation you recognise")
 	p.Field("open", "Open TrailMQ in your browser")
 	p.Blank()
 	p.Title("Operate")

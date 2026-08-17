@@ -948,6 +948,101 @@ else
 fi
 
 # --------------------------------------------------------------------------
+section "9. Scenario pack"
+# --------------------------------------------------------------------------
+# Scenarios are the product's explanation format, and the same files are meant
+# to drive both the local demo and the website walkthrough. A story that only
+# one of them can tell, or that describes behaviour a release no longer has, is
+# worse than no story — so the parts that can be checked from here are.
+SCENARIO_DIR="scenarios"
+
+if [ ! -d "${SCENARIO_DIR}" ]; then
+  skip "no scenario pack in this tree"
+else
+  mapfile -t SCENARIO_FILES < <(find "${SCENARIO_DIR}" -maxdepth 1 -name '*.json' -type f | sort)
+
+  if [ "${#SCENARIO_FILES[@]}" -eq 0 ]; then
+    fail "${SCENARIO_DIR}/ exists but contains no scenarios"
+  fi
+
+  for file in "${SCENARIO_FILES[@]}"; do
+    name="$(basename "${file}" .json)"
+
+    if ! jq -e . "${file}" >/dev/null 2>&1; then
+      fail "${file} is not valid JSON" "$(jq . "${file}" 2>&1 | head -n2)"
+      continue
+    fi
+
+    # The file name is how the command line names a scenario and how a URL
+    # addresses it. Disagreement means one of the two is wrong.
+    id="$(jq -r '.id // ""' "${file}")"
+    if [ "${id}" != "${name}" ]; then
+      fail "${file}: id does not match the file name" "id '${id}', file '${name}'"
+    fi
+
+    missing="$(jq -r '
+      [ if (.title // "") == "" then "title" else empty end,
+        if (.question // "") == "" then "question" else empty end,
+        if (.summary // "") == "" then "summary" else empty end,
+        if (.compatibleWith // "") == "" then "compatibleWith" else empty end,
+        if (.closing.headline // "") == "" then "closing.headline" else empty end,
+        if (.closing.explanation // "") == "" then "closing.explanation" else empty end,
+        if ((.steps // []) | length) == 0 then "steps" else empty end
+      ] | join(", ")' "${file}")"
+    if [ -n "${missing}" ]; then
+      fail "${file} is missing required fields" "${missing}"
+      continue
+    fi
+
+    # Every step carries all three disclosure levels. A step with no headline
+    # reads as protocol trivia to the audience this exists for; one with no
+    # explanation cannot answer the question the scenario claims to answer.
+    incomplete="$(jq -r '
+      [ .steps[] | select((.headline // "") == "" or (.explanation // "") == "" or (.topic // "") == "")
+        | .id // "<no id>" ] | join(", ")' "${file}")"
+    if [ -n "${incomplete}" ]; then
+      fail "${file}: steps missing a headline, explanation or topic" "${incomplete}"
+    fi
+
+    # A step kind the runner does not implement would be silently skipped.
+    unknown_kind="$(jq -r '
+      [ .steps[] | select((.kind // "") as $k
+        | ["publish_denied","publish_delivered","decision_record"] | index($k) | not)
+        | "\(.id // "<no id>") (\(.kind // "none"))" ] | join(", ")' "${file}")"
+    if [ -n "${unknown_kind}" ]; then
+      fail "${file}: steps with an unknown kind" "${unknown_kind}"
+    fi
+
+    # Actors are bound to real evaluation identities. A step naming an actor
+    # the scenario never defines cannot run.
+    if ! dangling="$(jq -er '
+      . as $doc
+      | (($doc.actors // []) | map(.key)) as $keys
+      | [ ($doc.steps // [])[]
+          | (.actor // "") as $actor
+          | select($actor != "" and ($keys | index($actor) | not))
+          | $actor ]
+      | unique | join(", ")' "${file}" 2>&1)"; then
+      # A query that errors reports nothing, which would look exactly like a
+      # scenario with no problem. Treat it as a finding, not as silence.
+      fail "${file}: the actor references could not be checked" "${dangling}"
+    elif [ -n "${dangling}" ]; then
+      fail "${file}: steps refer to actors the scenario does not define" "${dangling}"
+    fi
+
+    # The scenario states which runtime it was written against. Letting that
+    # fall behind is how a demo starts describing behaviour that changed.
+    compatible="$(jq -r '.compatibleWith // ""' "${file}")"
+    if [ -n "${RELEASE_VERSION}" ] && [ "${compatible}" != "${RELEASE_VERSION}" ]; then
+      fail "${file} was written for another release" \
+        "compatibleWith '${compatible}', this release is ${RELEASE_VERSION}"
+    else
+      pass "${file} is a complete scenario for ${compatible}"
+    fi
+  done
+fi
+
+# --------------------------------------------------------------------------
 section "Result"
 # --------------------------------------------------------------------------
 if [ "${FAILED}" -eq 0 ]; then
