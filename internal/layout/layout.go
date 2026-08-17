@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -33,6 +34,9 @@ import (
 const DefaultRecipe = "secure-mqtt-core"
 
 type Layout struct {
+	// Mode is how this copy was deployed, which decides whether state lives
+	// beside the assets or in the user's own profile.
+	Mode Mode
 	// Install holds the release contract and, once packaged, the launcher.
 	Install string
 	// Assets holds read-only inputs: Compose files, configuration, nginx.
@@ -43,24 +47,99 @@ type Layout struct {
 	Runtime string
 }
 
+// InstalledMarker sits next to the launcher in an installed copy. The
+// installer writes it; a checkout or an extracted archive does not have one.
+//
+// A marker is used rather than a guess about whether the directory is
+// writable. Program Files happens to be writable for an administrator, and a
+// launcher that decided where to put the user's certificates based on who
+// started it would put them in two different places on the same machine.
+const InstalledMarker = ".trailmq-installed"
+
+// Mode is how this copy of TrailMQ was deployed.
+type Mode int
+
+const (
+	// Portable is a checkout or an extracted archive: everything lives
+	// together in one folder the user can delete.
+	Portable Mode = iota
+	// Installed is a system installation: product assets are read-only and
+	// the user's state lives in their own profile.
+	Installed
+)
+
+func (m Mode) String() string {
+	if m == Installed {
+		return "installed"
+	}
+	return "portable"
+}
+
 // Resolve derives the layout from the release contract's location, which is
 // the one file guaranteed to sit at the installation root.
 func Resolve(contractPath string) Layout {
 	install := filepath.Dir(contractPath)
 
 	l := Layout{
+		Mode:    Portable,
 		Install: install,
 		Assets:  filepath.Join(install, "recipes"),
 		State:   filepath.Join(install, "recipes"),
 		Runtime: filepath.Join(install, ".trailmq"),
 	}
 
-	// An explicit state directory is honoured now so the installed layout has
-	// somewhere to point without this package changing shape again.
+	if _, err := os.Stat(filepath.Join(install, InstalledMarker)); err == nil {
+		// An installation writes nothing into its own program directory. The
+		// evaluation's databases, certificates and credentials belong to the
+		// user, and putting them under Program Files would make them
+		// unwritable for a normal account and invisible when uninstalling.
+		l.Mode = Installed
+		if data, err := userStateDir(); err == nil {
+			l.State = filepath.Join(data, "recipes")
+			l.Runtime = filepath.Join(data, "state")
+		}
+	}
+
+	// An explicit override wins over both, for tests and unusual deployments.
 	if dir := os.Getenv("TRAILMQ_STATE_DIR"); dir != "" {
 		l.State = dir
+		if l.Mode == Installed {
+			l.Runtime = filepath.Join(filepath.Dir(dir), "state")
+		}
 	}
 	return l
+}
+
+// Separated reports whether state lives outside the installation. When it
+// does, the recipe's relative bind mounts no longer point at the user's data
+// and Compose needs an override.
+func (l Layout) Separated() bool {
+	return filepath.Clean(l.Assets) != filepath.Clean(l.State)
+}
+
+// userStateDir is where this platform keeps per-user application data.
+func userStateDir() (string, error) {
+	switch runtime.GOOS {
+	case "windows":
+		// LOCALAPPDATA rather than the roaming profile: an evaluation's
+		// database and container state are machine-local and must not be
+		// synchronised onto another machine by a domain profile.
+		if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
+			return filepath.Join(dir, "TrailMQ"), nil
+		}
+	case "darwin":
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, "Library", "Application Support", "TrailMQ"), nil
+		}
+	default:
+		if dir := os.Getenv("XDG_DATA_HOME"); dir != "" {
+			return filepath.Join(dir, "trailmq"), nil
+		}
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, ".local", "share", "trailmq"), nil
+		}
+	}
+	return "", errors.New("could not determine a per-user data directory")
 }
 
 // Recipe describes one runnable stack.

@@ -147,15 +147,18 @@ control contract-badge-drift \
 # direction is deliberately absent: source for an undeclared track is legal,
 # and the baseline run proves it — cmd/trailmq is present while
 # distribution.launcher is null, and the gate passes.
+# Each control declares a track and then removes exactly one link of the
+# evidence chain, so a partial claim fails on the part that is missing rather
+# than on whichever check happens to run first.
 control contract-track-without-build \
   "but nothing builds it" \
-  sed -i "s/^  windows_installer: null$/  windows_installer: 3.1.0/" release.yaml
+  bash -c "sed -i 's/^  windows_installer: null\$/  windows_installer: 3.1.0/' release.yaml &&
+           rm -rf distribution/windows"
 
-# The launcher is the real case: implemented, built and tested on every change,
-# but shipped by no release workflow. Declaring it must fail until one exists.
 control contract-track-without-publisher \
   "but nothing publishes it" \
-  sed -i "s/^  launcher: null$/  launcher: 3.1.0/" release.yaml
+  bash -c "sed -i 's/^  launcher: null\$/  launcher: 3.1.0/' release.yaml &&
+           rm -f .github/workflows/launcher-release.yml"
 
 control contract-publisher-without-artifact \
   "publishes no artifact" \

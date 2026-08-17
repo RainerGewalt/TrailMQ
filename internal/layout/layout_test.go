@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -143,5 +144,55 @@ func installRecipe(t *testing.T, l Layout, name string) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "docker-compose.yaml"), []byte("services: {}\n"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// An installed copy must not write into its own program directory: the
+// evaluation's certificates and database belong to the user, and Program Files
+// is not writable for a normal account.
+func TestInstalledModeMovesStateOutOfTheInstallation(t *testing.T) {
+	install := t.TempDir()
+	if err := os.WriteFile(filepath.Join(install, InstalledMarker), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Point the per-user location somewhere predictable for the test.
+	t.Setenv("LOCALAPPDATA", filepath.Join(t.TempDir(), "AppData"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "share"))
+
+	l := Resolve(filepath.Join(install, "release.yaml"))
+
+	if l.Mode != Installed {
+		t.Fatalf("Mode = %v, want Installed", l.Mode)
+	}
+	if !l.Separated() {
+		t.Error("an installed layout reports assets and state in the same place")
+	}
+	if strings.HasPrefix(l.State, install) {
+		t.Errorf("state %q is inside the installation %q", l.State, install)
+	}
+	// Bookkeeping is written too, so it has to move with the state.
+	if strings.HasPrefix(l.Runtime, install) {
+		t.Errorf("runtime state %q is inside the installation %q", l.Runtime, install)
+	}
+	// Assets stay where they were shipped.
+	if !strings.HasPrefix(l.Assets, install) {
+		t.Errorf("assets %q left the installation %q", l.Assets, install)
+	}
+}
+
+// Without the marker nothing changes, which is what keeps a checkout and an
+// extracted bundle behaving exactly as they did before.
+func TestPortableModeIsUnchanged(t *testing.T) {
+	install := t.TempDir()
+	l := Resolve(filepath.Join(install, "release.yaml"))
+
+	if l.Mode != Portable {
+		t.Errorf("Mode = %v, want Portable", l.Mode)
+	}
+	if l.Separated() {
+		t.Error("a portable layout separated assets from state")
+	}
+	if l.State != filepath.Join(install, "recipes") {
+		t.Errorf("State = %q, want the recipes folder", l.State)
 	}
 }

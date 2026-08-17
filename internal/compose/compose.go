@@ -33,6 +33,10 @@ type Project struct {
 	// Compose file, but TrailMQ's lives at the installation root, so the
 	// launcher resolves it and passes the result down.
 	Env []string
+	// Overrides are extra Compose files layered onto the recipe's own, used
+	// when an installation keeps the user's state outside the program
+	// directory. Empty for a portable copy, which needs none.
+	Overrides []string
 }
 
 // Service is one container as Compose reports it.
@@ -77,7 +81,16 @@ func (s Service) Status() string {
 }
 
 func (p Project) command(ctx context.Context, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "docker", append([]string{"compose"}, args...)...)
+	// The base file is named explicitly so the overrides layer onto it in a
+	// defined order; Compose applies -f arguments left to right.
+	compose := []string{"compose"}
+	if len(p.Overrides) > 0 {
+		compose = append(compose, "-f", "docker-compose.yaml")
+		for _, override := range p.Overrides {
+			compose = append(compose, "-f", override)
+		}
+	}
+	cmd := exec.CommandContext(ctx, "docker", append(compose, args...)...)
 	cmd.Dir = p.Dir
 	cmd.Env = append(os.Environ(), p.Env...)
 	return cmd

@@ -1,0 +1,124 @@
+name: Launcher release
+
+# Publishes the cross-platform launcher and the Windows installer.
+#
+# This workflow is the evidence the release contract requires before
+# distribution.launcher and distribution.windows_installer may name a version:
+# it builds the artifacts, verifies the artifacts it built rather than the
+# source they came from, and attaches exactly those files to the release.
+#
+# The version is never typed here. It comes from release.yaml, so a launcher
+# cannot be published under a version the contract does not declare.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "Revision to package (tag, branch or SHA)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launcher-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: windows-x64
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      # 11d5960 is actions/checkout v4.4.0, pinned to a commit for the same
+      # reason the distribution gate pins it: a workflow that produces a
+      # published artifact must not run third-party code other than the one
+      # that was reviewed.
+      - name: Check out the revision to package
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.inputs.revision || github.ref }}
+          persist-credentials: false
+
+      - name: Report the toolchain
+        run: go version
+
+      # A release must not be able to ship a distribution the repository would
+      # have rejected.
+      - name: Validate the distribution being packaged
+        shell: bash
+        run: .github/scripts/check-distribution.sh
+
+      - name: Build the Windows payload and portable archive
+        shell: bash
+        run: .github/scripts/build-windows-package.sh dist
+
+      # Inno Setup 6.3 or newer: the payload declares x64compatible, which
+      # earlier versions do not understand.
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build the installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(scripts/release-contract.sh get version)"
+          payload="$(cd "dist/TrailMQ-${version}-windows-x64" && pwd -W 2>/dev/null || pwd)"
+
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+            "/DAppVersion=${version}" \
+            "/DPayloadDir=${payload}" \
+            "/O$(cd dist && pwd -W 2>/dev/null || pwd)" \
+            distribution/windows/trailmq.iss
+
+          ls -l "dist/TrailMQ-Setup-${version}.exe"
+
+      # --- artifact verification -------------------------------------------
+      #
+      # The same script the pull-request workflow runs, so an artifact cannot
+      # be published having passed a weaker check than the one guarding the
+      # branch it came from.
+      - name: Verify the built artifacts
+        shell: pwsh
+        run: |
+          $version = (bash scripts/release-contract.sh get version).Trim()
+          distribution/windows/verify-artifacts.ps1 -Version $version -DistDir dist
+
+      - name: Publish checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum TrailMQ-*.zip TrailMQ-Setup-*.exe >SHA256SUMS-windows
+          cat SHA256SUMS-windows
+
+      # Uploading is the only step needing more than read access, and it is
+      # scoped to this job rather than the workflow.
+      - name: Attach the Windows artifacts to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version="$(scripts/release-contract.sh get version)"
+          gh release upload "${{ github.event.release.tag_name }}" \
+            "dist/TrailMQ-${version}-windows-x64.zip" \
+            "dist/TrailMQ-Setup-${version}.exe" \
+            "dist/SHA256SUMS-windows" --clobber
+
+      # A manual run has no release to attach to, so the artifacts are kept
+      # for inspection instead. 4cec3d8 is actions/upload-artifact v4.6.2.
+      - name: Keep the artifacts for inspection
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        with:
+          name: windows-launcher
+          path: |
+            dist/TrailMQ-*-windows-x64.zip
+            dist/TrailMQ-Setup-*.exe
+            dist/SHA256SUMS-windows
+          retention-days: 14

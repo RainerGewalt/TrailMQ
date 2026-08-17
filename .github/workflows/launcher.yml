@@ -97,6 +97,52 @@ jobs:
             exit 1
           fi
 
+  windows-package:
+    name: windows package
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out the revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Report the toolchain
+        run: go version
+
+      - name: Build the Windows payload and portable archive
+        shell: bash
+        run: .github/scripts/build-windows-package.sh dist
+
+      # Inno Setup 6.3 or newer: the installer declares x64compatible, which
+      # earlier versions do not understand.
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build the installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(scripts/release-contract.sh get version)"
+          payload="$(cd "dist/TrailMQ-${version}-windows-x64" && pwd -W 2>/dev/null || pwd)"
+
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+            "/DAppVersion=${version}" \
+            "/DPayloadDir=${payload}" \
+            "/O$(cd dist && pwd -W 2>/dev/null || pwd)" \
+            distribution/windows/trailmq.iss
+
+      # The same verification the release runs. Building the installer on every
+      # pull request costs a few minutes and buys the thing cross-compiling
+      # cannot prove: that a fresh installation on a real Windows machine
+      # produces a launcher which answers.
+      - name: Verify the built artifacts
+        shell: pwsh
+        run: |
+          $version = (bash scripts/release-contract.sh get version).Trim()
+          distribution/windows/verify-artifacts.ps1 -Version $version -DistDir dist
+
   cross-compile:
     name: cross-compile
     runs-on: ubuntu-latest

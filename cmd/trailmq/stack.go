@@ -59,12 +59,25 @@ func openSession(requireSetup bool) (*session, error) {
 		return nil, fmt.Errorf("recipe %q is not installed in %s", name, l.Assets)
 	}
 
+	// An installed copy keeps the user's state outside the program directory,
+	// which the recipe's relative bind mounts cannot express. The override is
+	// regenerated here rather than only at setup, so every command — including
+	// the read-only ones — addresses the same containers. It is a derived file
+	// in the user's own state directory, and writing it costs nothing when the
+	// layout needs no separation, because then it is not written at all.
+	var overrides []string
+	if path, err := provision.EnsureComposeOverride(l, recipe); err != nil {
+		return nil, err
+	} else if path != "" {
+		overrides = append(overrides, path)
+	}
+
 	env := endpoints.EnvOverrides(l.Install)
 	return &session{
 		contract: c,
 		layout:   l,
 		recipe:   recipe,
-		project:  compose.Project{Dir: recipe.Assets, Env: env},
+		project:  compose.Project{Dir: recipe.Assets, Env: env, Overrides: overrides},
 		points:   endpoints.Load(l.Install),
 	}, nil
 }

@@ -204,7 +204,7 @@ section "3. Release contract"
 TRACKS=(
   "distribution.evaluation_bundle|.github/scripts/build-evaluation-bundle.sh|.github/workflows/evaluation-bundle.yml"
   "distribution.launcher|cmd/trailmq|.github/workflows/launcher-release.yml"
-  "distribution.windows_installer|distribution/windows|.github/workflows/windows-installer.yml"
+  "distribution.windows_installer|distribution/windows|.github/workflows/launcher-release.yml"
   "demo.scenario_pack|scenarios|.github/workflows/scenario-pack.yml"
 )
 
