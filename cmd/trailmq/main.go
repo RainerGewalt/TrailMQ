@@ -73,6 +73,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdStart(out, errOut)
 	case "stop":
 		return cmdStop(out, errOut)
+	case "verify":
+		return cmdVerify(out, errOut, rest)
+	case "credentials", "creds":
+		return cmdCredentials(out, errOut)
 	case "help", "--help", "-h":
 		usage(out)
 		return exitOK
@@ -99,12 +103,16 @@ func usage(p *output.Printer) {
 	p.Field("start", "Start a prepared evaluation")
 	p.Field("stop", "Stop the stack and keep the data")
 	p.Blank()
+	p.Title("Prove and inspect")
+	p.Field("verify", "Run the decision proof")
+	p.Field("credentials", "Show the generated evaluation logins")
+	p.Blank()
 	p.Title("Diagnose")
 	p.Field("doctor", "Check whether this machine can run TrailMQ")
 	p.Field("version", "Show the release this launcher belongs to")
 	p.Blank()
-	p.Dim("The decision proof (verify) and client onboarding (connect) are still")
-	p.Dim("served by the ./trailmq shell launcher in the evaluation package.")
+	p.Dim("Client onboarding (connect) and log tailing are still served by the")
+	p.Dim("./trailmq shell launcher in the evaluation package.")
 }
 
 // loadContract resolves the release contract and the directory holding it.

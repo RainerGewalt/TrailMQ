@@ -122,6 +122,10 @@ func (e Endpoints) WebUI() string { return e.httpBase() + "/trailmq/" }
 
 func (e Endpoints) RestAPI() string { return e.httpBase() + "/api/v1" }
 
+// Ready is the backend's readiness endpoint. The proxy exposes it at the root
+// rather than under the versioned API, so it cannot be derived from RestAPI.
+func (e Endpoints) Ready() string { return e.httpBase() + "/ready" }
+
 func (e Endpoints) MQTTOverTLS() string { return "localhost:" + e.MQTTTLSPort }
 
 func (e Endpoints) MQTTOverWebSocket() string {
