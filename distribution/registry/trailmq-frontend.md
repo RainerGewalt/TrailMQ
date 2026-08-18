@@ -48,7 +48,10 @@ the advanced workspace in TrailMQ Pro, not to this image.
 ## Verification
 
 Built by the same automated pipeline as the backend and signed keyless with
-cosign, with an SBOM and `mode=max` provenance attached.
+cosign, with an SBOM and `mode=max` provenance attached. All three hang off the
+published index as OCI referrers and attestations rather than as extra tags, so
+verification needs **cosign 3.x** — there is no `.sig` tag, and not finding one
+says nothing about whether the image is signed.
 
 ```bash
 cosign verify \
