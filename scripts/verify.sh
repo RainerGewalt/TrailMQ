@@ -235,12 +235,51 @@ fi
 # ------------------------------------------------------------------
 # The denial is an explicit, attributable decision
 # ------------------------------------------------------------------
-deny_line="$(docker logs trailmq-backend --since 2m 2>&1 |
+# Read the end of the log rather than a time range. Docker serves --since by
+# scanning the log file from its beginning, so one corrupted region — which a
+# machine can carry from an earlier unclean daemon shutdown, and which has
+# nothing to do with TrailMQ — makes every --since read fail for the rest of
+# that container's life. The wanted record was written seconds ago and sits at
+# the very end, so a failed read is retried over less of the log rather than
+# given up on. --timestamps restores the age check --since was performing.
+#
+# This mirrors internal/verification/decisions.go: both implementations of the
+# proof have to answer this the same way.
+deny_logs=""
+deny_error=""
+for tail in 400 100 25; do
+  if deny_logs="$(docker logs trailmq-backend --tail "${tail}" --timestamps 2>&1)"; then
+    deny_error=""
+    break
+  fi
+  # The daemon reports the cause on the stream that also carries the log, and
+  # the process itself only says "exit status 1".
+  deny_error="$(printf '%s\n' "${deny_logs}" | tail -n 1)"
+  deny_logs=""
+done
+
+# A record older than this belongs to an earlier run and is not this run's
+# evidence. An environment whose date(1) supports neither form leaves the
+# cutoff empty, which keeps every line rather than discarding all of them.
+deny_cutoff="$(date -u -d '5 minutes ago' '+%Y-%m-%dT%H:%M:%S' 2>/dev/null ||
+  date -u -v-5M '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || true)"
+
+deny_line="$(printf '%s\n' "${deny_logs}" |
+  awk -v cutoff="${deny_cutoff}" '
+    # Whether a line carries a timestamp is a property of the log driver, so
+    # an unstamped one is kept rather than treated as too old.
+    $1 ~ /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/ { if (substr($1, 1, 19) >= cutoff) print; next }
+    { print }
+  ' |
   grep -F '[ACLMon] DENY' | grep -F 'restricted/ops/config' | tail -n 1 || true)"
+
 if [ -n "${deny_line}" ]; then
   record_pass deny_recorded "Denial recorded with user, role, action and topic"
   emit_result deny_record "${deny_line#*] }"
   printf "       ${C_DIM}%s${C_RESET}\n" "${deny_line#*] }"
+elif [ -n "${deny_error}" ]; then
+  record_fail deny_recorded "Denial recorded with user, role, action and topic" \
+    "The backend log could not be read: ${deny_error}"
 else
   record_fail deny_recorded "Denial recorded with user, role, action and topic" \
     "No [ACLMon] DENY entry found for restricted/ops/config"
