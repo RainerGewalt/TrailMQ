@@ -63,3 +63,12 @@ database files, or audit archives.
 
 By submitting a contribution, you agree that it can be used under the TrailMQ
 license terms described in [LICENSE](LICENSE).
+
+Read section 4 of that file before contributing. It is a rights grant, not only
+a usage term: by submitting an issue, documentation improvement, recipe, script
+or other contribution, you grant the copyright holder a perpetual, worldwide,
+royalty-free licence to use, modify, distribute and **commercialize** that
+contribution as part of TrailMQ.
+
+That is stated here rather than left in the LICENSE alone, because it is the
+term a contributor is most likely to want to know about in advance.

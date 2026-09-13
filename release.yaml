@@ -51,13 +51,13 @@
 # stays a statement of composition: see the TRACKS list in
 # .github/scripts/check-distribution.sh.
 
-version: 3.1.0
+version: 3.1.1
 
 # The runtime a first run pulls. Backend and frontend ship as one release and
 # are never mixed across versions.
 runtime:
-  backend: 3.1.0
-  frontend: 3.1.0
+  backend: 3.1.1
+  frontend: 3.1.1
 
 # What a user can download and run.
 #
@@ -65,7 +65,7 @@ runtime:
 # but no release publishes a binary yet, so it is not part of this release.
 # It becomes a version here when a workflow ships it.
 distribution:
-  evaluation_bundle: 3.1.0
+  evaluation_bundle: 3.1.1
   launcher: null
   windows_installer: null
 

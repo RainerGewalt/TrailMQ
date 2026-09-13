@@ -2,7 +2,7 @@
 
 [![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
 [![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
-[![Release](https://img.shields.io/badge/published%20release-3.1.0-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
+[![Release](https://img.shields.io/badge/published%20release-3.1.1-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
 [![Distribution gate](https://github.com/RainerGewalt/TrailMQ/actions/workflows/distribution-gate.yml/badge.svg?branch=master)](https://github.com/RainerGewalt/TrailMQ/actions/workflows/distribution-gate.yml)
 [![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
 [![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#release-quality-and-security)
@@ -51,10 +51,14 @@ twice — once where the client is allowed and once where it is not:
        topic="restricted/ops/config" reason=acl_role_not_in_topic_scope
 
 ✓ Evidence verified: system and action audit chain
-  1940 entries hash-checked, chain intact
+  <n> entries hash-checked, chain intact
 ```
 
 Then it opens the Web UI. Nothing to configure first.
+
+The output above is illustrative. The entry count depends on what your run
+actually did — a first run on an empty database produces a small number, not a
+large one.
 
 ### The same thing, as a reproducible check
 
@@ -325,7 +329,7 @@ gitignored.
 
 This is the public, Docker-first evaluation package for TrailMQ.
 
-**What you get today is `3.1.0`** — that is what the recipe pulls and what is
+**What you get today is `3.1.1`** — that is what the recipe pulls and what is
 published on Docker Hub and GHCR. `3.0.0` remains available if you need to pin
 the previous release; see [.env.example](.env.example). The product reports its
 own build in `./trailmq verify`, so you can always tell which one you are running.
@@ -409,17 +413,25 @@ that refused is reported as having refused.
 | | Evaluation Preview (this repository) | TrailMQ Pro |
 | --- | --- | --- |
 | UI | Overview, Access, Clients and Activity, including evaluation user and topic-rule management | Advanced operations workspace, deeper governance and decision explanations |
-| Backend | Hardened evaluation image | Production/commercial backend |
+| Backend | Same broker, published as the evaluation image | Same broker, licensed for production and commercial use |
 | Intended use | Local, non-production technical evaluation | Production and commercial use |
 | Availability | Public Docker images | On request |
+
+The difference between the two columns is licensing and what is offered with it,
+not a technically limited binary. Nothing in the evaluation image is disabled by
+a licence key, an activation check or a trial timer, because no such mechanism
+exists. What governs production use is the [LICENSE](LICENSE), not the software.
 
 For production or commercial evaluation, contact **contact@trailmq.com** or visit
 [trailmq.com](https://trailmq.com).
 
 Evaluating TrailMQ with a real MQTT use case? Share your setup experience or
-request direct onboarding support at **contact@trailmq.com**. TrailMQ sends no
-telemetry: no topics, payloads, identities or operational metadata leave your
-machine.
+request direct onboarding support at **contact@trailmq.com**.
+
+TrailMQ sends nothing to us. There is no TrailMQ telemetry, analytics or
+call-home. By default, the evaluation stack does not export your topics,
+payloads, identities or operational metadata. Operator-configured features such
+as audit export, replication and OCSP may make outbound connections.
 
 ## CLI essentials
 
@@ -434,7 +446,8 @@ machine.
 | `./trailmq status` | Show runtime and audit status |
 | `./trailmq doctor` | Diagnose Docker, config, certificates, credentials, and ports |
 | `./trailmq down` | Stop the stack and keep local data |
-| `./trailmq reset` | Stop the stack and remove runtime data |
+| `./trailmq reset` | Stop the stack and remove runtime data. Generated certificates, credentials and the active recipe are kept |
+| `./trailmq purge` | Remove the recipe runtime, including the generated certificates and credentials |
 
 Run `./trailmq help` for the complete command list.
 

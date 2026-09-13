@@ -89,7 +89,9 @@ docker start trailmq-backend
 
 Re-run step 1 — `HTTP 200`, `"valid": true` again. In a real incident you
 would *not* know the original value; the mismatch itself is the finding.
-Alternatively, wipe the evaluation data entirely with `./trailmq reset`.
+Alternatively, clear the evaluation data with `./trailmq reset`. That removes
+runtime data and keeps the generated certificates and credentials, so the next
+run reuses them. Use `./trailmq purge` to remove the generated state as well.
 
 ## What this is — and is not
 

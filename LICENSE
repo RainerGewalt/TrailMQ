@@ -22,8 +22,15 @@ and configuration examples for:
 
 - personal learning
 - local experimentation
-- non-production technical evaluation
-- internal demonstrations of TrailMQ capabilities
+- non-production technical evaluation, including a proof of concept
+- demonstrating TrailMQ itself, whether internally or to a prospective
+  customer or partner
+
+The distinction is what TrailMQ is used *for*, not who is watching. Showing
+TrailMQ to someone who might buy it is a demonstration and is permitted, and so
+is a proof of concept run against your own or a prospect's test data. Operating
+TrailMQ as part of a service that your customers depend on is production use and
+is not, however it is labelled.
 
 2. Restrictions
 
@@ -32,7 +39,8 @@ holder, you may not:
 
 - use TrailMQ in production
 - use TrailMQ for commercial, revenue-generating, hosted, managed, or customer
-  facing services
+  facing services — that is, carrying traffic your customers or their systems
+  rely on, as distinct from demonstrating TrailMQ to them
 - redistribute, sell, sublicense, rent, lease, or offer TrailMQ as a service
 - remove copyright, license, trademark, or proprietary notices
 - publish benchmark results or security test results in a misleading way
