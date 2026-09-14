@@ -314,7 +314,7 @@ Do not treat a Preview counter alone as proof that a publish was delivered.
   certify the complete deployed system as CRA-, GMP/GxP-, Annex 11-, or 21 CFR
   Part 11-compliant.
 
-See the repository [evaluation boundaries](../../README.md#evaluation-boundaries)
+See the repository [evaluation boundaries](../../README.md#trust-and-evidence-scope)
 and [license](../../LICENSE).
 
 ## Operate the local recipe

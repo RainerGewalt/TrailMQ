@@ -38,7 +38,7 @@ Review architecture and evaluation boundaries
    - namespace governance → [Govern a namespace](scenarios/03-governed-namespace.md);
    - record integrity → [Tamper evidence](scenarios/04-tamper-evidence.md);
    - silent delivery failure → [Message policy and QoS](scenarios/07-message-policy-qos.md).
-5. Read the [evaluation boundaries](../README.md#evaluation-boundaries) before
+5. Read the [evaluation boundaries](../README.md#trust-and-evidence-scope) before
    making a production-fit or compliance assessment.
 
 ## Product model in three lines

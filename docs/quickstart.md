@@ -117,7 +117,7 @@ or audit exports.
 | test authorization failures | [Denied by design](scenarios/02-denied-actions.md) |
 | govern a new namespace | [Govern a namespace](scenarios/03-governed-namespace.md) |
 | test history integrity | [Tamper evidence](scenarios/04-tamper-evidence.md) |
-| understand current limits | [Evaluation boundaries](../README.md#evaluation-boundaries) |
+| understand current limits | [Evaluation boundaries](../README.md#trust-and-evidence-scope) |
 
 ## Daily commands
 
