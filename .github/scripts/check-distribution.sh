@@ -480,10 +480,14 @@ if [ -z "${RELEASE_VERSION}" ]; then
   fail "Could not determine the release version from release.yaml or Compose"
 else
   # Every place that names a TrailMQ image must name the release being shipped.
-  # Two paths are excluded on purpose: .env.example documents pinning to an
+  # Three paths are excluded on purpose: .env.example documents pinning to an
   # older published release, which is a supported user action rather than
-  # drift, and .github/scripts holds the deliberate counter-examples the
-  # negative controls inject.
+  # drift; .github/scripts holds the deliberate counter-examples the negative
+  # controls inject; and trust-artifacts.md is a dated record of what was
+  # observed on the registries for one specific release, down to the digests
+  # and the transparency-log entry. There the older tag is the subject of the
+  # document, not drift in it — bumping it to the current release would falsify
+  # the observation the document exists to preserve.
   drift=0
   while IFS= read -r hit; do
     file="${hit%%:*}"
@@ -494,7 +498,8 @@ else
     fi
   done < <(
     git grep -oE 'rainergewalt/trailmq-(backend|frontend):[0-9][A-Za-z0-9._-]*' -- \
-      . ':(exclude).env.example' ':(exclude).github/scripts'
+      . ':(exclude).env.example' ':(exclude).github/scripts' \
+      ':(exclude)distribution/registry/trust-artifacts.md'
   )
   if [ "${drift}" -eq 0 ]; then
     pass "All TrailMQ image references name ${RELEASE_VERSION}"
