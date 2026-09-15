@@ -78,7 +78,7 @@ This is the core product proof: authenticated traffic flows, unauthorized
 traffic is blocked, the reason is attributable, and the recorded system/action
 history still forms a valid hash chain.
 
-## 3. Review the result
+## 3. Read the decision
 
 Print the generated login and local endpoints:
 
@@ -88,11 +88,29 @@ Print the generated login and local endpoints:
 ```
 
 Open **http://localhost/trailmq/**, log in as `testadmin`, open **Activity**,
-and filter for **Outcome: Denied**.
+and filter for **Outcome: Denied**. The publish that `verify` just blocked is
+the row you are looking for, and it carries its own explanation:
 
-The Evaluation Preview is a review-first UI. Use the REST API and
-`recipes/secure-mqtt-core/config.yaml` for changes such as creating a governed
-topic or adding a role.
+```text
+Actor       testuser
+Client      the MQTT client id that connected
+Topic       restricted/ops/config
+Event       Publish refused — no rule brings this topic into scope for any
+            role this identity holds
+Outcome     Denied
+Evidence    Recorded
+Integrity   Outside validated scope
+```
+
+Those last three columns answer three different questions, and the UI says so
+above the table: whether the operation was permitted, whether it was written
+down, and whether the validated chain covers that record. `Outside validated
+scope` is a stated limit, not a defect — see
+[trust and evidence scope](../README.md#trust-and-evidence-scope).
+
+The **Access** surface is not read-only: create evaluation users and topic
+rules there, or drive the same operations through the REST API and
+`recipes/secure-mqtt-core/config.yaml`.
 
 ## What was created
 
