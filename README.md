@@ -430,20 +430,21 @@ Treat test counts, signatures, image digests, SBOMs, and attestations as evidenc
 for the specific release tag you evaluate. Security reports follow
 [SECURITY.md](SECURITY.md).
 
-The `3.1.0` images carry an SBOM, `mode=max` provenance and a keyless cosign
+Published images carry an SBOM, `mode=max` provenance and a keyless cosign
 signature, all attached to the published index rather than to extra tags. The
 signature is a Sigstore bundle reachable through the OCI 1.1 referrers API, so
 verifying it needs **cosign 3.x**: there is no `:sha256-….sig` tag to look for,
-and its absence is not evidence of an unsigned image. It was verified in the
-same pipeline run against a certificate identity pinned to the release workflow,
-and you can repeat that:
+and its absence is not evidence of an unsigned image. The release pipeline
+verifies the signature in the same run that produces it, against a certificate
+identity pinned to the release workflow, and you can repeat that check against
+whichever tag you evaluate:
 
 ```bash
 # The tag is a pointer; the signature covers the index it currently resolves
 # to. A manifest is content-addressed, so hashing it *is* reading its digest —
 # and this works on every buildx version, unlike --format.
 digest="sha256:$(docker buildx imagetools inspect --raw \
-  rainergewalt/trailmq-backend:3.1.0 | sha256sum | cut -d' ' -f1)"
+  rainergewalt/trailmq-backend:3.1.1 | sha256sum | cut -d' ' -f1)"
 
 cosign verify \
   --certificate-identity-regexp '^https://github.com/RainerGewalt/MQTrail/\.github/workflows/release\.yml@refs/(tags|heads)/.+$' \
@@ -454,6 +455,10 @@ cosign verify \
 What that signature covers, and what reading the published artifacts does and
 does not establish on its own, is recorded in
 [distribution/registry/trust-artifacts.md](distribution/registry/trust-artifacts.md).
+That document is a dated observation of the `3.1.0` images, digests and all. It
+is kept as it was written rather than renumbered to each new release, because a
+record of what was observed stops being one the moment it is edited to match
+something else.
 
 **TrailMQ 3.1.0 was published on a documented release-owner decision after the
 automated runtime gate refused the candidate** over unresolved validation and
