@@ -32,6 +32,10 @@ build/
 /trailmq-*-arm64
 /trailmq-*.exe
 
+# --- Internal working notes — never part of the public distribution ---
+/VULNERABILITY-RUNBOOK.md
+/BEFUNDE-UX.md
+
 # --- Editor / OS junk ---
 .DS_Store
 .idea/
