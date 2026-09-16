@@ -42,8 +42,10 @@ Recorded events and the integrity verdict both live on **Activity**; there is no
 separate evidence page. Evaluation users and topic rules can be created from
 **Access**, or through the REST API.
 
-Operations beyond that — deeper governance and decision explanations — belong to
-the advanced workspace in TrailMQ Pro, not to this image.
+The decision, the reason it was refused and the stated scope of the integrity
+verdict are all in this image; none of it starts after a purchase. What this
+image does not carry is the wider operations workspace — day-to-day operations
+at scale belong to TrailMQ Pro.
 
 ## Verification
 
@@ -60,10 +62,22 @@ cosign verify \
   rainergewalt/trailmq-frontend:{{version}}
 ```
 
-## Scope
+## Intended purpose
 
-This is the evaluation and review interface for the matching TrailMQ release. It
-is a local, non-production technical evaluation surface; production or
-commercial use requires a separate agreement.
+This is the evaluation and review interface for the matching TrailMQ release.
+
+TrailMQ Evaluation Preview is intended solely for local, non-production
+technical evaluation. It is not intended for production operation,
+safety-related functions, life-safety systems, emergency control, or use where
+failure could directly result in injury, physical damage, or interruption of
+critical operations. Production use requires a separately assessed TrailMQ
+production offering and written agreement.
+
+The safety-related exclusion is the one boundary a commercial agreement about
+the Evaluation Preview does not lift.
+
+Full statement:
+[Intended purpose](https://github.com/RainerGewalt/TrailMQ#intended-purpose) ·
+[License](https://github.com/RainerGewalt/TrailMQ/blob/master/LICENSE)
 
 Commercial and technical contact: **contact@trailmq.com**

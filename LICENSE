@@ -1,5 +1,5 @@
 TrailMQ Proprietary Evaluation License
-Version 1.0
+Version 1.1
 
 Copyright (c) 2026 Rainer Gewalt. All rights reserved.
 
@@ -8,6 +8,9 @@ Plain English summary:
 - Free for local learning, demos, and non-production technical evaluation.
 - Not allowed for production, commercial use, managed hosting, redistribution,
   or customer-facing services without a separate agreement.
+- Never for safety-related, life-safety, emergency-control, or any use where a
+  failure could injure someone, damage property, or interrupt a critical
+  operation. This holds regardless of any other permission in this license.
 - TrailMQ is provided without warranty.
 - The binding terms are below.
 
@@ -32,12 +35,34 @@ is a proof of concept run against your own or a prospect's test data. Operating
 TrailMQ as part of a service that your customers depend on is production use and
 is not, however it is labelled.
 
-2. Restrictions
+2. Intended purpose and excluded uses
+
+TrailMQ Evaluation Preview is intended solely for local, non-production
+technical evaluation. It is not intended for production operation,
+safety-related functions, life-safety systems, emergency control, or use where
+failure could directly result in injury, physical damage, or interruption of
+critical operations. Production use requires a separately assessed TrailMQ
+production offering and written agreement.
+
+This is a statement of intended purpose, not only a limit on permission. No
+part of this repository, its documentation, its scenarios, its screenshots, or
+any other TrailMQ publication should be read as a representation that the
+Evaluation Preview is suitable for controlling, protecting, supervising, or
+interlocking a physical process, a machine, a vehicle, a building system, or
+any operation in which people or property can come to harm.
+
+The safety-related exclusion in this section is absolute. Unlike the
+restrictions in section 3, it is not lifted by a commercial agreement for the
+Evaluation Preview; a safety-related deployment would require a different
+product, separately assessed for that purpose.
+
+3. Restrictions
 
 Unless you have a separate written commercial license from the copyright
 holder, you may not:
 
 - use TrailMQ in production
+- use TrailMQ for any purpose excluded by section 2
 - use TrailMQ for commercial, revenue-generating, hosted, managed, or customer
   facing services — that is, carrying traffic your customers or their systems
   rely on, as distinct from demonstrating TrailMQ to them
@@ -48,41 +73,49 @@ holder, you may not:
   Docker image contents, except where applicable law requires that this be
   permitted
 
-3. Ownership
+4. Ownership
 
 TrailMQ, its proprietary binaries, Docker images, product design, trademarks,
 and related intellectual property remain the property of the copyright holder.
 No ownership rights are transferred by this evaluation license.
 
-4. Contributions and feedback
+5. Contributions and feedback
 
 By submitting issues, documentation improvements, recipe improvements, scripts,
 or other contributions to this repository, you grant the copyright holder a
 perpetual, worldwide, royalty-free license to use, modify, distribute, and
 commercialize that contribution as part of TrailMQ.
 
-5. No warranty
+6. No warranty
 
 TrailMQ is provided "as is" and "as available", without warranties of any kind,
 whether express, implied, statutory, or otherwise, including warranties of
 merchantability, fitness for a particular purpose, title, and non-infringement.
 
-6. Limitation of liability
+7. Limitation of liability
 
 To the maximum extent permitted by law, the copyright holder is not liable for
 any direct, indirect, incidental, special, consequential, exemplary, or punitive
 damages, or for lost profits, lost revenue, lost data, business interruption,
 or security incidents arising from evaluation use of TrailMQ.
 
-7. Termination
+Nothing in this license excludes or limits liability to the extent that such
+exclusion or limitation is not permitted by applicable mandatory law. Depending
+on the jurisdiction, that may include liability for death or personal injury
+caused by negligence, for fraud or fraudulent misrepresentation, for intent or
+gross negligence, and liability under applicable product liability law. Where a
+limitation in this license is held unenforceable, it applies to the maximum
+extent that is enforceable, and the rest of this license stays in force.
+
+8. Termination
 
 This license terminates automatically if you violate its terms. After
 termination, you must stop using TrailMQ and delete local copies of proprietary
 TrailMQ images and runtime artifacts.
 
-8. Commercial licensing
+9. Commercial licensing
 
 Production use, commercial use, managed hosting, redistribution, or other use
 outside this evaluation grant requires a separate commercial agreement.
 
-Contact: https://trailmq.com
+Contact: contact@trailmq.com · https://trailmq.com

@@ -229,6 +229,22 @@ individual MQTT decision, that is not what this check proves today. The chain is
 also not externally anchored and not digitally signed, so it demonstrates
 internal consistency rather than third-party custody.
 
+### Intended purpose
+
+TrailMQ Evaluation Preview is intended solely for local, non-production
+technical evaluation. It is not intended for production operation,
+safety-related functions, life-safety systems, emergency control, or use where
+failure could directly result in injury, physical damage, or interruption of
+critical operations. Production use requires a separately assessed TrailMQ
+production offering and written agreement.
+
+That paragraph is word for word
+[section 2 of the license](LICENSE), and it is the one boundary a commercial
+agreement about the Evaluation Preview does not lift: a safety-related
+deployment would need a different product, separately assessed for that
+purpose. Everything else on this page describes what the Preview does well
+within that purpose.
+
 Further evaluation boundaries:
 
 - **Local, non-production evaluation only.** Demo certificates and generated

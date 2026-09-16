@@ -80,8 +80,21 @@ product labels those records `Outside validated scope`. The chain is also
 neither externally anchored nor digitally signed, so it demonstrates internal
 consistency rather than third-party custody.
 
-Evaluation is not a production deployment: the generated users and demo
-certificates are not deployment-ready, and production or commercial use requires
-a separate agreement.
+## Intended purpose
+
+TrailMQ Evaluation Preview is intended solely for local, non-production
+technical evaluation. It is not intended for production operation,
+safety-related functions, life-safety systems, emergency control, or use where
+failure could directly result in injury, physical damage, or interruption of
+critical operations. Production use requires a separately assessed TrailMQ
+production offering and written agreement.
+
+The generated users and demo certificates are not deployment-ready. The
+safety-related exclusion is the one boundary a commercial agreement about the
+Evaluation Preview does not lift.
+
+Full statement:
+[Intended purpose](https://github.com/RainerGewalt/TrailMQ#intended-purpose) ·
+[License](https://github.com/RainerGewalt/TrailMQ/blob/master/LICENSE)
 
 Commercial and technical contact: **contact@trailmq.com**
