@@ -26,6 +26,23 @@ PRISTINE="${WORK}/pristine"
 RECIPE="recipes/secure-mqtt-core"
 COMPOSE="${RECIPE}/docker-compose.yaml"
 
+# Every control mutates a healthy tree, so each pattern it matches has to name
+# the release this tree actually ships. Hardcoding that version meant the seds
+# quietly matched nothing after a version bump: the tree stayed healthy, the
+# gate correctly passed it, and the control reported the gate as having
+# accepted a regression it was never shown. The version comes from the contract
+# for the same reason every other version in this repository does.
+REL="$(scripts/release-contract.sh get version)"
+if [ -z "${REL}" ]; then
+  printf 'could not read the release version from release.yaml\n' >&2
+  exit 2
+fi
+
+# The wrong value a control injects. Any released version that is not this one
+# will do; it only has to differ, or the mutation is not a mutation.
+OTHER="3.0.0"
+[ "${OTHER}" = "${REL}" ] && OTHER="2.0.0"
+
 FAILED=0
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -129,18 +146,18 @@ control contract-missing-key \
 
 control contract-mixed-runtime \
   "runtime.frontend does not name the release version" \
-  sed -i "s/^  frontend: 3.1.0$/  frontend: 3.0.0/" release.yaml
+  sed -i "s/^  frontend: ${REL}$/  frontend: ${OTHER}/" release.yaml
 
 # Compose drifting away from the contract is the drift this slice exists to
 # catch, and it must be reported against the contract — not against whatever
 # Compose happens to say.
 control contract-compose-drift \
   "backend default does not name the release contract version" \
-  sed -i "s|rainergewalt/trailmq-backend:3.1.0}|rainergewalt/trailmq-backend:3.0.0}|" "${COMPOSE}"
+  sed -i "s|rainergewalt/trailmq-backend:${REL}}|rainergewalt/trailmq-backend:${OTHER}}|" "${COMPOSE}"
 
 control contract-badge-drift \
   "README release badge does not name the shipped release" \
-  sed -i "s|published%20release-3.1.0-blue|published%20release-3.0.0-blue|" README.md
+  sed -i "s|published%20release-${REL}-blue|published%20release-${OTHER}-blue|" README.md
 
 # Declaring a track is a claim that a published artifact exists, so each thing
 # that claim depends on has to be individually enforceable. The opposite
@@ -152,12 +169,12 @@ control contract-badge-drift \
 # than on whichever check happens to run first.
 control contract-track-without-build \
   "but nothing builds it" \
-  bash -c "sed -i 's/^  windows_installer: null\$/  windows_installer: 3.1.0/' release.yaml &&
+  bash -c "sed -i 's/^  windows_installer: null\$/  windows_installer: ${REL}/' release.yaml &&
            rm -rf distribution/windows"
 
 control contract-track-without-publisher \
   "but nothing publishes it" \
-  bash -c "sed -i 's/^  launcher: null\$/  launcher: 3.1.0/' release.yaml &&
+  bash -c "sed -i 's/^  launcher: null\$/  launcher: ${REL}/' release.yaml &&
            rm -f .github/workflows/launcher-release.yml"
 
 control contract-publisher-without-artifact \
@@ -222,7 +239,7 @@ SCENARIO="scenarios/unauthorized-machine-command.json"
 
 control scenario-stale-compatibility \
   "was written for another release" \
-  sed -i 's/"compatibleWith": "3.1.0"/"compatibleWith": "3.0.0"/' "${SCENARIO}"
+  sed -i "s/\"compatibleWith\": \"${REL}\"/\"compatibleWith\": \"${OTHER}\"/" "${SCENARIO}"
 
 control scenario-missing-explanation \
   "steps missing a headline, explanation or topic" \
@@ -278,7 +295,7 @@ control unprepared-bind-mount \
 # --- Image reference sanity ------------------------------------------------
 control unpinned-image \
   "is not a pinned trailmq-backend tag" \
-  sed -i "s|rainergewalt/trailmq-backend:3.1.0}|rainergewalt/trailmq-backend:latest}|" "${COMPOSE}"
+  sed -i "s|rainergewalt/trailmq-backend:${REL}}|rainergewalt/trailmq-backend:latest}|" "${COMPOSE}"
 
 control unpinned-proxy-digest \
   "is not digest-pinned" \
@@ -286,7 +303,7 @@ control unpinned-proxy-digest \
 
 control stale-documented-image \
   "Stale TrailMQ image reference" \
-  sed -i "s|rainergewalt/trailmq-frontend:3.1.0|rainergewalt/trailmq-frontend:3.0.0|" "${RECIPE}/README.md"
+  sed -i "s|rainergewalt/trailmq-frontend:${REL}|rainergewalt/trailmq-frontend:${OTHER}|" "${RECIPE}/README.md"
 
 # --- Hardened deployment invariants ----------------------------------------
 control privileged-service \
