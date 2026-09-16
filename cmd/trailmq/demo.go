@@ -40,7 +40,14 @@ func cmdDemo(out, errOut *output.Printer, args []string) int {
 		}
 	}
 
-	s, err := openSession(true)
+	// Listing what ships with this installation is a property of the
+	// installation, not of a running stack. A fresh install should be able to
+	// answer "what can I run?" before anything is set up — that is the first
+	// question someone asks after installing, and refusing it with "run
+	// quickstart first" teaches nothing about what quickstart would lead to.
+	// Running a scenario still needs a prepared recipe, so the requirement
+	// moves to the case that actually has it.
+	s, err := openSession(wanted != "")
 	if err != nil {
 		return reportSetupError(errOut, err)
 	}

@@ -122,6 +122,12 @@ jobs:
 
       - name: Build the installer
         shell: bash
+        env:
+          # Git Bash rewrites arguments that look like absolute POSIX paths, so
+          # /DAppVersion=… arrives at ISCC as C:/Program Files/Git/DAppVersion=…
+          # and the compiler reports it as a second script filename. Excluding
+          # every argument from that conversion is what keeps the flags intact.
+          MSYS2_ARG_CONV_EXCL: "*"
         run: |
           set -euo pipefail
           version="$(scripts/release-contract.sh get version)"

@@ -3,7 +3,7 @@
   "title": "Unauthorized machine command",
   "audience": "Production, automation and quality",
   "question": "What happens when someone tries to change a machine setting they are not allowed to change?",
-  "compatibleWith": "3.1.0",
+  "compatibleWith": "3.1.1",
 
   "summary": "An operator panel on a filling line tries to write a new setpoint into a protected machine namespace. TrailMQ identifies the client, applies the access policy, refuses the command, and keeps an attributable record of the refusal.",
 
