@@ -198,6 +198,70 @@ func TestLauncherDoesNotShellOutToPOSIX(t *testing.T) {
 	}
 }
 
+// A fresh installation has no active recipe yet, and asking it what it can run
+// is the first thing someone does after installing. The Windows artifact
+// verification asserts exactly this against the packaged launcher, so a
+// regression here fails the release rather than the user's first minute.
+func TestDemoListsScenariosWithoutSetup(t *testing.T) {
+	// The same three things the Windows artifact check asserts an installation
+	// ships: the contract, the recipe and the scenario pack. What it does not
+	// have is an active recipe, because nothing has been set up yet.
+	install := t.TempDir()
+	for _, f := range []string{
+		"release.yaml",
+		filepath.Join("recipes", "secure-mqtt-core", "docker-compose.yaml"),
+		filepath.Join("recipes", "secure-mqtt-core", "recipe.yaml"),
+		filepath.Join("scenarios", "unauthorized-machine-command.json"),
+	} {
+		b, err := os.ReadFile(repoFile(t, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		dst := filepath.Join(install, f)
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(dst, b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Setenv("TRAILMQ_ROOT", install)
+	t.Setenv("NO_COLOR", "1")
+
+	code, stdout, stderr := exercise(t, "demo")
+	if code != exitOK {
+		t.Fatalf("listing scenarios on a fresh install exited %d, stderr:\n%s", code, stderr)
+	}
+	if !strings.Contains(stdout, "unauthorized-machine-command") {
+		t.Errorf("the scenario pack was not listed:\n%s", stdout)
+	}
+}
+
+// Running one is a different claim: it needs a prepared recipe, and saying so
+// is more useful than a failure further in.
+func TestDemoRunStillRequiresSetup(t *testing.T) {
+	install := t.TempDir()
+	b, err := os.ReadFile(repoFile(t, "release.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(install, "release.yaml"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("TRAILMQ_ROOT", install)
+	t.Setenv("NO_COLOR", "1")
+
+	code, _, stderr := exercise(t, "demo", "unauthorized-machine-command")
+	if code != exitEnvironment {
+		t.Errorf("exit = %d, want %d", code, exitEnvironment)
+	}
+	if !strings.Contains(stderr, "quickstart") {
+		t.Errorf("the failure does not say what to do about it:\n%s", stderr)
+	}
+}
+
 func repoFile(t *testing.T, parts ...string) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
