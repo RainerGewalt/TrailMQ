@@ -16,6 +16,22 @@ You need:
 You do **not** need a local MQTT client for the automated proof. TrailMQ uses a
 temporary Docker client when `mosquitto_pub` and `mosquitto_sub` are absent.
 
+## The one-command version
+
+```bash
+git clone https://github.com/RainerGewalt/TrailMQ.git
+cd TrailMQ
+./trailmq try
+```
+
+`try` performs every step on this page in order — prerequisites, setup, start,
+readiness, the decision proof — then summarizes what TrailMQ allowed, what it
+refused, and why, and opens the Web UI.
+
+The rest of this page is the same sequence as separate, reproducible commands.
+Use it when you want each step's raw output, or when you are scripting the
+evaluation.
+
 ## 1. Start the evaluation stack
 
 ```bash
@@ -62,7 +78,7 @@ This is the core product proof: authenticated traffic flows, unauthorized
 traffic is blocked, the reason is attributable, and the recorded system/action
 history still forms a valid hash chain.
 
-## 3. Review the result
+## 3. Read the decision
 
 Print the generated login and local endpoints:
 
@@ -72,11 +88,29 @@ Print the generated login and local endpoints:
 ```
 
 Open **http://localhost/trailmq/**, log in as `testadmin`, open **Activity**,
-and filter for **Outcome: Denied**.
+and filter for **Outcome: Denied**. The publish that `verify` just blocked is
+the row you are looking for, and it carries its own explanation:
 
-The Evaluation Preview is a review-first UI. Use the REST API and
-`recipes/secure-mqtt-core/config.yaml` for changes such as creating a governed
-topic or adding a role.
+```text
+Actor       testuser
+Client      the MQTT client id that connected
+Topic       restricted/ops/config
+Event       Publish refused — no rule brings this topic into scope for any
+            role this identity holds
+Outcome     Denied
+Evidence    Recorded
+Integrity   Outside validated scope
+```
+
+Those last three columns answer three different questions, and the UI says so
+above the table: whether the operation was permitted, whether it was written
+down, and whether the validated chain covers that record. `Outside validated
+scope` is a stated limit, not a defect — see
+[trust and evidence scope](../README.md#trust-and-evidence-scope).
+
+The **Access** surface is not read-only: create evaluation users and topic
+rules there, or drive the same operations through the REST API and
+`recipes/secure-mqtt-core/config.yaml`.
 
 ## What was created
 
@@ -101,7 +135,7 @@ or audit exports.
 | test authorization failures | [Denied by design](scenarios/02-denied-actions.md) |
 | govern a new namespace | [Govern a namespace](scenarios/03-governed-namespace.md) |
 | test history integrity | [Tamper evidence](scenarios/04-tamper-evidence.md) |
-| understand current limits | [Evaluation boundaries](../README.md#evaluation-boundaries) |
+| understand current limits | [Evaluation boundaries](../README.md#trust-and-evidence-scope) |
 
 ## Daily commands
 

@@ -14,7 +14,11 @@ cmd="${1:-menu}"
 shift || true
 
 case "$cmd" in
-  quickstart|try)
+  try)
+    exec "${TRAILMQ_ROOT}/scripts/try.sh" "$@"
+    ;;
+
+  quickstart)
     exec "${TRAILMQ_ROOT}/scripts/launch.sh" --quickstart "$@"
     ;;
 
@@ -38,6 +42,23 @@ case "$cmd" in
   open)
     require_active_recipe
     print_access_points
+    # The URLs are printed first and unconditionally, so this command is still
+    # useful over SSH, in a container, or anywhere without a browser — opening
+    # one is a convenience on top, never a requirement.
+    ui_url="$(trailmq_http_base_url)/trailmq/"
+    if [ "${TRAILMQ_NO_BROWSER:-}" = "1" ]; then
+      :
+    elif open_url "${ui_url}"; then
+      echo
+      log_info "${C_DIM}Opening ${ui_url} in your browser…${C_RESET}"
+    else
+      echo
+      log_info "${C_DIM}No browser could be opened here — use the Web UI link above.${C_RESET}"
+    fi
+    ;;
+
+  connect)
+    exec "${TRAILMQ_ROOT}/scripts/connect.sh" "$@"
     ;;
 
   credentials|creds|login)
@@ -71,7 +92,11 @@ case "$cmd" in
     exec "${TRAILMQ_ROOT}/scripts/certs.sh" "$@"
     ;;
 
-  verify|proof|demo)
+  verify|proof)
+    # 'demo' used to alias this. It no longer does: the launcher binary uses
+    # 'demo' for scenario walkthroughs, which are a different thing from the
+    # PASS/FAIL proof, and one word meaning two things across the product is
+    # worse than a removed alias nothing documented.
     exec "${TRAILMQ_ROOT}/scripts/verify.sh" "$@"
     ;;
 
@@ -159,9 +184,20 @@ case "$cmd" in
     ;;
 
   version|--version|-v)
-    echo "TrailMQ CLI — Docker-first distribution launcher"
-    echo "Backend image:  ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:3.1.0}"
-    echo "Frontend image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:3.1.0}"
+    # Versions come from release.yaml, never from a literal here. A launcher
+    # that names a release the recipe does not pull is the exact drift the
+    # release contract exists to make impossible.
+    contract="${TRAILMQ_ROOT}/scripts/release-contract.sh"
+    if ! release="$("${contract}" get version)"; then
+      log_err "Could not read the release version from release.yaml."
+      exit 1
+    fi
+    backend_version="$("${contract}" get runtime.backend)"
+    frontend_version="$("${contract}" get runtime.frontend)"
+
+    echo "TrailMQ ${release} — Docker-first distribution launcher"
+    echo "Backend image:  ${TRAILMQ_BACKEND_IMAGE:-rainergewalt/trailmq-backend:${backend_version}}"
+    echo "Frontend image: ${TRAILMQ_FRONTEND_IMAGE:-rainergewalt/trailmq-frontend:${frontend_version}}"
     ;;
 
   menu|help|--help|-h)

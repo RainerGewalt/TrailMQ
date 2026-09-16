@@ -12,11 +12,11 @@ description: |
   nothing more. Every other recipe builds on top of this one.
 
 # Images used by this recipe.
-# Pinned to the 3.1.0 release — env vars override at runtime.
+# Pinned to the 3.1.1 release — env vars override at runtime.
 # See .env.example for the recommended variables.
 images:
-  backend: rainergewalt/trailmq-backend:3.1.0
-  frontend: rainergewalt/trailmq-frontend:3.1.0
+  backend: rainergewalt/trailmq-backend:3.1.1
+  frontend: rainergewalt/trailmq-frontend:3.1.1
   nginx: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
 
 # Capabilities enabled in this recipe.

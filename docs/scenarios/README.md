@@ -7,8 +7,9 @@ was verified against a running system — including the outputs.
 
 **New to TrailMQ?** Read
 [Scenario 0 — Why not just use a broker?](00-why-not-just-a-broker.md) first.
-It runs the same commands against a standard MQTT broker and against TrailMQ
-and lets the difference speak for itself. Everything else builds on that.
+It runs the same commands against `eclipse-mosquitto` in its default open
+configuration and against TrailMQ, and lets the outcomes speak for themselves.
+Everything else builds on that.
 
 **Want the shortest version?** After the images are available,
 `./trailmq verify` proves the core claim automatically in about 30 seconds.
@@ -60,5 +61,5 @@ so run them in order if you want to follow along exactly.
 
 If you only remember one sentence from these walkthroughs:
 
-> A broker moves messages. TrailMQ decides about them, enforces the decision,
-> and keeps a record you can check afterwards.
+> Moving the message is the easy part. TrailMQ also decides about it, enforces
+> that decision, and keeps a record you can check afterwards.

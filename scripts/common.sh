@@ -62,6 +62,80 @@ trailmq_mqtt_tls_address() {
   printf "localhost:%s" "${TRAILMQ_MQTT_TLS_PORT}"
 }
 
+trailmq_ca_path() {
+  local recipe="${1:-${ACTIVE_RECIPE:-}}"
+  [ -n "${recipe}" ] || return 1
+  printf "%s/recipes/%s/certs/ca_cert.pem" "${TRAILMQ_ROOT}" "${recipe}"
+}
+
+# --- Ports ---
+
+# True when something already listens on the given TCP port. Used by preflight
+# to name the conflict before Docker reports it as an opaque bind failure.
+# Best effort by design: on a machine with none of these tools we report the
+# port as free and let Compose be the authority.
+port_in_use() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}\$"
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}\$"
+  else
+    return 1
+  fi
+}
+
+# --- Browser ---
+
+# Open a URL in the user's browser. Returns non-zero when no opener exists
+# (headless server, container, minimal image) so the caller can fall back to
+# printing the URL. The URL is always printed by the caller regardless, so a
+# failure here is cosmetic and must never abort the calling script.
+open_url() {
+  local url="$1"
+  local opener=""
+
+  # WSL is checked first: it has a Linux userland, but the browser the user is
+  # actually looking at runs on Windows. xdg-open there either does nothing or
+  # opens a Linux browser nobody can see.
+  if grep -qi microsoft /proc/version 2>/dev/null; then
+    if command -v wslview >/dev/null 2>&1; then
+      opener="wslview"
+    elif command -v powershell.exe >/dev/null 2>&1; then
+      powershell.exe -NoProfile -Command "Start-Process '${url}'" >/dev/null 2>&1 && return 0
+      return 1
+    elif command -v cmd.exe >/dev/null 2>&1; then
+      cmd.exe /c start "" "${url}" >/dev/null 2>&1 && return 0
+      return 1
+    fi
+  fi
+
+  if [ -z "${opener}" ]; then
+    case "$(uname -s 2>/dev/null || echo unknown)" in
+      Darwin)
+        command -v open >/dev/null 2>&1 && opener="open"
+        ;;
+      *)
+        # A Linux host with no graphical session has nothing to open. Testing
+        # for a session first avoids an error message from the opener that
+        # looks like a TrailMQ failure but is not one.
+        if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v xdg-open >/dev/null 2>&1; then
+          opener="xdg-open"
+        fi
+        ;;
+    esac
+  fi
+
+  [ -n "${opener}" ] || return 1
+
+  # Detached and silenced: openers routinely keep the terminal attached or
+  # print desktop-portal noise across the summary the user is meant to read.
+  ("${opener}" "${url}" >/dev/null 2>&1 &)
+  return 0
+}
+
 print_evaluation_credentials() {
   local recipe="${1:-${ACTIVE_RECIPE:-}}"
   if [ -z "${recipe}" ]; then
@@ -219,24 +293,26 @@ ${C_BOLD}Usage${C_RESET}
   ./trailmq <command>
 
 ${C_BOLD}Start here${C_RESET}
-  ${C_GREEN}quickstart${C_RESET}   Set up and start the local evaluation stack
-  ${C_GREEN}verify${C_RESET}       Prove it: allow, deny, system/action audit chain
-  ${C_GREEN}open${C_RESET}         Show the local URLs
-  ${C_GREEN}reset${C_RESET}        Stop the stack and wipe runtime data
+  ${C_GREEN}try${C_RESET}          Start TrailMQ and show what it decides
+  ${C_GREEN}open${C_RESET}         Open TrailMQ in your browser
+  ${C_GREEN}connect${C_RESET}      Connect your own MQTT client
+  ${C_GREEN}reset${C_RESET}        Reset the evaluation to a clean state
 
 ${C_BOLD}Advanced${C_RESET}
-  ${C_DIM}start${C_RESET}        Start or repair the setup (same as quickstart)
-  ${C_DIM}launch${C_RESET}       Guided setup — pick a Starter Kit
-  ${C_DIM}up / down${C_RESET}    Start / stop the active recipe
+  ${C_DIM}quickstart${C_RESET}   Set up and start the stack, without the guided run
+  ${C_DIM}verify${C_RESET}       The decision proof as a reproducible PASS/FAIL run
   ${C_DIM}status${C_RESET}       Show services, ports and audit status
   ${C_DIM}credentials${C_RESET}  Show the generated evaluation passwords
   ${C_DIM}logs${C_RESET}         Tail logs for the active recipe
   ${C_DIM}doctor${C_RESET}       Check Docker, ports, certs, config
   ${C_DIM}certs${C_RESET}        Generate local demo certificates
+  ${C_DIM}start${C_RESET}        Start or repair the setup (same as quickstart)
+  ${C_DIM}launch${C_RESET}       Guided setup — pick a Starter Kit
+  ${C_DIM}up / down${C_RESET}    Start / stop the active recipe
   ${C_DIM}purge${C_RESET}        Remove everything generated for the recipe
   ${C_DIM}version${C_RESET}      Show version info
 
 ${C_BOLD}First time here?${C_RESET}
-  ./trailmq quickstart && ./trailmq verify
+  ./trailmq try
 EOF
 }

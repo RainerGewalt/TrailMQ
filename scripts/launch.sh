@@ -10,12 +10,25 @@ export TRAILMQ_ROOT
 source "${TRAILMQ_ROOT}/scripts/common.sh"
 
 quickstart=false
-case "${1:-}" in
-  --quickstart|--yes|-y)
-    quickstart=true
-    shift || true
-    ;;
-esac
+# './trailmq try' prints its own closing summary — a better one, because it can
+# also report what the decision proof found. Suppressing this script's epilogue
+# there avoids telling the user two different "next step"s in a row.
+epilogue=true
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --quickstart|--yes|-y)
+      quickstart=true
+      shift
+      ;;
+    --no-epilogue)
+      epilogue=false
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 # ------------------------------------------------------------------
 # Intro
@@ -225,6 +238,11 @@ log_ok "Stack is up."
 
 ACTIVE_RECIPE="${recipe}"
 export ACTIVE_RECIPE
+
+if ! $epilogue; then
+  exit 0
+fi
+
 print_access_points
 
 print_evaluation_credentials "${recipe}"

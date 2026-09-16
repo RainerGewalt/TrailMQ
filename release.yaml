@@ -1,0 +1,88 @@
+# TrailMQ release contract
+#
+# What belongs to a TrailMQ release, and at which version. This file is the
+# source of version truth for the whole public distribution: the Compose
+# defaults, the recipe metadata, the README badge, `./trailmq version` and the
+# evaluation bundle all have to agree with it, and the distribution gate
+# (.github/scripts/check-distribution.sh) fails the build when one of them
+# drifts.
+#
+# ---------------------------------------------------------------------------
+# This file states intent, not evidence.
+# ---------------------------------------------------------------------------
+# It says which components form a release and how their versions must line up.
+# It deliberately carries no image digests, no asset checksums and no signature
+# status. Those are only knowable after the images are pushed and the assets
+# are built — recording them here would mean amending a commit that has already
+# been tagged. Build-time evidence belongs in the generated release record
+# produced after publication, which is immutable precisely because this file is
+# not.
+#
+# ---------------------------------------------------------------------------
+# Shape
+# ---------------------------------------------------------------------------
+# Two-space indentation, `key: value`, no lists, no quotes required. The reader
+# (scripts/release-contract.sh) rejects anything else instead of guessing: a
+# contract that can be silently misread is worse than no contract.
+#
+# ---------------------------------------------------------------------------
+# Lifecycle of a track
+# ---------------------------------------------------------------------------
+#   <version>   the track is published as part of this release
+#   null        the track is not part of this release
+#
+# A track moves through three states, and only the last one belongs here:
+#
+#   implemented   the code exists in this repository
+#   packaged      a build produces a distributable artifact from it
+#   released      that artifact is published as part of a release
+#
+# The rule is: **declaration requires evidence, source presence does not
+# require declaration.**
+#
+# Work can therefore start on a launcher, an installer or a scenario pack
+# without this file claiming a published release contains one. What is not
+# allowed is the reverse — naming a version here for a track that nothing
+# builds, publishes, or verifies. The gate checks that a declared track has a
+# build, a workflow that publishes it on release, a step that verifies what it
+# built, and a version taken from this file rather than typed into a workflow.
+#
+# Which evidence counts is decided in the gate, not here, so that this file
+# stays a statement of composition: see the TRACKS list in
+# .github/scripts/check-distribution.sh.
+
+version: 3.1.1
+
+# The runtime a first run pulls. Backend and frontend ship as one release and
+# are never mixed across versions.
+runtime:
+  backend: 3.1.1
+  frontend: 3.1.1
+
+# What a user can download and run.
+#
+# The launcher exists in cmd/trailmq and is built and tested on every change,
+# but no release publishes a binary yet, so it is not part of this release.
+# It becomes a version here when a workflow ships it.
+distribution:
+  evaluation_bundle: 3.1.1
+  launcher: null
+  windows_installer: null
+
+# The scenario pack behind `./trailmq demo` and the website demo. Both are
+# still to be built; `compatible_with` names the runtime the pack was written
+# against, which is not automatically the current release.
+demo:
+  scenario_pack: null
+  compatible_with: null
+
+# Public surfaces that must carry this release before it counts as published.
+# `required` is an obligation, not a claim that it is already satisfied: this
+# gate never leaves the repository, so fulfilment is checked by the publication
+# stage that can actually reach those surfaces.
+public_surfaces:
+  docker: required
+  ghcr: required
+  website:
+    download: required
+    demo: required

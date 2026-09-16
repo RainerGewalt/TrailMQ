@@ -1,0 +1,10 @@
+This file marks an installed copy of TrailMQ.
+
+The launcher reads it to decide where your data belongs. When it is present,
+TrailMQ keeps certificates, credentials, databases and logs under your own
+user profile instead of writing into the program directory, which an
+installation must never do.
+
+Deleting this file turns the installation back into a portable copy, and the
+launcher will then look for your data next to the program files, where it is
+not. Leave it alone unless that is what you intend.

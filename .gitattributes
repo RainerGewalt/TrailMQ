@@ -1,0 +1,17 @@
+# Line endings are normalised to LF in the working tree on every platform.
+#
+# Two things in this repository depend on that. The launcher and its scripts
+# are executed through bash on Windows as well, where a CRLF shebang line is
+# not a shebang. And the formatting gate runs `gofmt -l .` on a Windows runner,
+# where a CRLF checkout makes every Go file look unformatted — which is exactly
+# how the Windows job failed while Linux and the local tree stayed clean.
+* text=auto eol=lf
+
+# Binary assets are never normalised. `text=auto` detects most of these on its
+# own; naming them is cheaper than finding out it guessed wrong about one.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.exe binary
+*.zip binary

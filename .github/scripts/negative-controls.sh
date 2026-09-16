@@ -26,6 +26,23 @@ PRISTINE="${WORK}/pristine"
 RECIPE="recipes/secure-mqtt-core"
 COMPOSE="${RECIPE}/docker-compose.yaml"
 
+# Every control mutates a healthy tree, so each pattern it matches has to name
+# the release this tree actually ships. Hardcoding that version meant the seds
+# quietly matched nothing after a version bump: the tree stayed healthy, the
+# gate correctly passed it, and the control reported the gate as having
+# accepted a regression it was never shown. The version comes from the contract
+# for the same reason every other version in this repository does.
+REL="$(scripts/release-contract.sh get version)"
+if [ -z "${REL}" ]; then
+  printf 'could not read the release version from release.yaml\n' >&2
+  exit 2
+fi
+
+# The wrong value a control injects. Any released version that is not this one
+# will do; it only has to differ, or the mutation is not a mutation.
+OTHER="3.0.0"
+[ "${OTHER}" = "${REL}" ] && OTHER="2.0.0"
+
 FAILED=0
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -111,6 +128,139 @@ control invalid-compose \
   "does not parse" \
   bash -c "printf '  bogus:\n    image\n' >> ${COMPOSE}"
 
+# --- The release contract --------------------------------------------------
+# These are the controls that matter most for the contract's central claim:
+# that release.yaml is the source of version truth rather than a file that
+# happens to sit next to one.
+control contract-unreadable \
+  "release.yaml is not in the documented shape" \
+  bash -c "printf 'runtime:\n   backend: 3.1.0\n' >> release.yaml"
+
+control contract-unknown-key \
+  "declares a key no rule enforces" \
+  bash -c "printf 'laucher: 3.1.0\n' >> release.yaml"
+
+control contract-missing-key \
+  "missing a required key" \
+  sed -i "/^  ghcr: required$/d" release.yaml
+
+control contract-mixed-runtime \
+  "runtime.frontend does not name the release version" \
+  sed -i "s/^  frontend: ${REL}$/  frontend: ${OTHER}/" release.yaml
+
+# Compose drifting away from the contract is the drift this slice exists to
+# catch, and it must be reported against the contract — not against whatever
+# Compose happens to say.
+control contract-compose-drift \
+  "backend default does not name the release contract version" \
+  sed -i "s|rainergewalt/trailmq-backend:${REL}}|rainergewalt/trailmq-backend:${OTHER}}|" "${COMPOSE}"
+
+control contract-badge-drift \
+  "README release badge does not name the shipped release" \
+  sed -i "s|published%20release-${REL}-blue|published%20release-${OTHER}-blue|" README.md
+
+# Declaring a track is a claim that a published artifact exists, so each thing
+# that claim depends on has to be individually enforceable. The opposite
+# direction is deliberately absent: source for an undeclared track is legal,
+# and the baseline run proves it — cmd/trailmq is present while
+# distribution.launcher is null, and the gate passes.
+# Each control declares a track and then removes exactly one link of the
+# evidence chain, so a partial claim fails on the part that is missing rather
+# than on whichever check happens to run first.
+control contract-track-without-build \
+  "but nothing builds it" \
+  bash -c "sed -i 's/^  windows_installer: null\$/  windows_installer: ${REL}/' release.yaml &&
+           rm -rf distribution/windows"
+
+control contract-track-without-publisher \
+  "but nothing publishes it" \
+  bash -c "sed -i 's/^  launcher: null\$/  launcher: ${REL}/' release.yaml &&
+           rm -f .github/workflows/launcher-release.yml"
+
+control contract-publisher-without-artifact \
+  "publishes no artifact" \
+  sed -i "/release upload/d; /upload-artifact/d" .github/workflows/evaluation-bundle.yml
+
+control contract-publisher-without-verification \
+  "verifies nothing it builds" \
+  sed -i "s|\.github/scripts/|unchecked/|g" .github/workflows/evaluation-bundle.yml
+
+control contract-publisher-off-release \
+  "does not run when a release is published" \
+  sed -i "/^  release:$/d" .github/workflows/evaluation-bundle.yml
+
+control contract-orphan-compatibility \
+  "disagree about existing" \
+  sed -i "s/^  compatible_with: null$/  compatible_with: 3.1.0/" release.yaml
+
+control contract-bad-surface \
+  "not a recognized release obligation" \
+  sed -i "s/^  docker: required$/  docker: maybe/" release.yaml
+
+# --- Registry surfaces -----------------------------------------------------
+# The registry page is where a stranger decides whether to pull the image, so
+# these guard the two ways it goes wrong: text that drifts from the release,
+# and text that describes a product surface which no longer exists.
+REGISTRY="distribution/registry"
+
+control registry-literal-version \
+  "contains a literal version" \
+  sed -i "s/{{version}}/3.1.0/" "${REGISTRY}/trailmq-backend.md"
+
+control registry-unknown-placeholder \
+  "uses an unknown placeholder" \
+  bash -c "printf '\nBuilt for {{relase}}.\n' >> ${REGISTRY}/trailmq-backend.md"
+
+control registry-missing-text \
+  "is published but has no canonical registry text" \
+  rm -f "${REGISTRY}/trailmq-frontend.md"
+
+control registry-missing-ghcr \
+  "does not name ghcr.io/rainergewalt/trailmq-backend" \
+  sed -i "/^Also published to GHCR/d" "${REGISTRY}/trailmq-backend.md"
+
+control registry-stale-surface \
+  "does not name the 'Activity' surface" \
+  sed -i "s/Activity/Events/g" "${REGISTRY}/trailmq-frontend.md"
+
+control registry-open-source-license \
+  "claims an open-source license" \
+  sed -i "s/^  licenses: LicenseRef-TrailMQ-Evaluation$/  licenses: MIT/" "${REGISTRY}/oci-labels.yaml"
+
+control registry-missing-label \
+  "OCI label 'vendor' is empty or missing" \
+  sed -i "/^  vendor: TrailMQ$/d" "${REGISTRY}/oci-labels.yaml"
+
+# --- Scenario pack ---------------------------------------------------------
+# Scenarios are what a stranger is shown. These guard the two ways that goes
+# wrong: a story the runner cannot execute, and a story describing a release
+# that has moved on.
+SCENARIO="scenarios/unauthorized-machine-command.json"
+
+control scenario-stale-compatibility \
+  "was written for another release" \
+  sed -i "s/\"compatibleWith\": \"${REL}\"/\"compatibleWith\": \"${OTHER}\"/" "${SCENARIO}"
+
+control scenario-missing-explanation \
+  "steps missing a headline, explanation or topic" \
+  sed -i '0,/"explanation":/s//"explanation": "",  "unused":/' "${SCENARIO}"
+
+control scenario-unknown-step-kind \
+  "steps with an unknown kind" \
+  sed -i 's/"kind": "publish_denied"/"kind": "publish_probably"/' "${SCENARIO}"
+
+control scenario-dangling-actor \
+  "refer to actors the scenario does not define" \
+  sed -i 's/"actor": "operator"/"actor": "nobody"/' "${SCENARIO}"
+
+control scenario-id-mismatch \
+  "id does not match the file name" \
+  sed -i 's/"id": "unauthorized-machine-command"/"id": "something-else"/' "${SCENARIO}"
+
+control scenario-invalid-json \
+  "is not valid JSON" \
+  bash -c "printf ',\n' >> ${SCENARIO}"
+
 # --- Stale recipe metadata -------------------------------------------------
 control stale-recipe-image \
   "recipe.yaml images.backend is stale" \
@@ -145,7 +295,7 @@ control unprepared-bind-mount \
 # --- Image reference sanity ------------------------------------------------
 control unpinned-image \
   "is not a pinned trailmq-backend tag" \
-  sed -i "s|rainergewalt/trailmq-backend:3.1.0}|rainergewalt/trailmq-backend:latest}|" "${COMPOSE}"
+  sed -i "s|rainergewalt/trailmq-backend:${REL}}|rainergewalt/trailmq-backend:latest}|" "${COMPOSE}"
 
 control unpinned-proxy-digest \
   "is not digest-pinned" \
@@ -153,7 +303,7 @@ control unpinned-proxy-digest \
 
 control stale-documented-image \
   "Stale TrailMQ image reference" \
-  sed -i "s|rainergewalt/trailmq-frontend:3.1.0|rainergewalt/trailmq-frontend:3.0.0|" "${RECIPE}/README.md"
+  sed -i "s|rainergewalt/trailmq-frontend:${REL}|rainergewalt/trailmq-frontend:${OTHER}|" "${RECIPE}/README.md"
 
 # --- Hardened deployment invariants ----------------------------------------
 control privileged-service \
@@ -193,6 +343,45 @@ control undocumented-cli-command \
 control broken-script-syntax \
   "[FAIL] bash -n scripts/doctor.sh" \
   bash -c "printf 'if [ 1 -eq 1 ]; then\n' >> scripts/doctor.sh"
+
+# ---------------------------------------------------------------------------
+printf "\n%sBundle self-containment%s\n" "${C_BOLD}" "${C_RESET}"
+# ---------------------------------------------------------------------------
+# The bundle is checked as a bundle, so its controls run against staged content
+# rather than through the distribution gate. The property under test is the one
+# a downloader experiences: a link in the download must lead somewhere.
+BUNDLE="${WORK}/bundle"
+cp -a "${PRISTINE}" "${BUNDLE}"
+BUNDLE_VERSION="$(scripts/release-contract.sh get version)"
+
+if .github/scripts/stage-evaluation-bundle.sh "${BUNDLE}" "${BUNDLE_VERSION}" >/dev/null 2>&1; then
+  if .github/scripts/check-bundle-links.sh "${BUNDLE}" >/dev/null 2>&1; then
+    ok "staged bundle: every relative link resolves inside the bundle"
+  else
+    bad "staged bundle: links do not resolve in freshly staged content" \
+      "$(.github/scripts/check-bundle-links.sh "${BUNDLE}" 2>&1 | head -n 5)"
+  fi
+
+  # Removal is what broke these links in the first place, so the fix has to be
+  # visible in the staged output rather than assumed.
+  if grep -rq 'https://github.com/RainerGewalt/TrailMQ/blob/master/CONTRIBUTING.md' "${BUNDLE}"; then
+    ok "staged bundle: links to stripped paths point at the canonical document"
+  else
+    bad "staged bundle: a link to a stripped path was not repointed"
+  fi
+
+  # And the check must actually be able to fail. A link checker that passes on
+  # a bundle with a missing document is not a check.
+  rm -f "${BUNDLE}/docs/troubleshooting.md"
+  if .github/scripts/check-bundle-links.sh "${BUNDLE}" >/dev/null 2>&1; then
+    bad "staged bundle: link check accepted a bundle with a missing document"
+  else
+    ok "missing-bundle-document: rejected — a removed target is reported"
+  fi
+else
+  bad "staged bundle: staging failed" \
+    "$(.github/scripts/stage-evaluation-bundle.sh "${BUNDLE}" "${BUNDLE_VERSION}" 2>&1 | head -n 5)"
+fi
 
 # ---------------------------------------------------------------------------
 printf "\n%sResult%s\n" "${C_BOLD}" "${C_RESET}"

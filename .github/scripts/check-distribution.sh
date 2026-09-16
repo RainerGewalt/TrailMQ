@@ -172,10 +172,225 @@ else
 fi
 
 # --------------------------------------------------------------------------
-section "3. Image references and version consistency"
+section "3. Release contract"
 # --------------------------------------------------------------------------
-# The Compose default for the backend is the single source of truth: it is what
-# a user who sets no environment variable actually pulls.
+# release.yaml declares what belongs to this release. Everything downstream —
+# Compose defaults, recipe metadata, the README badge, the launcher, the
+# evaluation bundle — is checked against it rather than against another
+# artifact that happens to be nearby.
+#
+# Declaration requires evidence; source presence does not require declaration.
+#
+# A track goes through implemented → packaged → released, and only the last
+# state belongs in the contract. Code for a launcher, an installer or a
+# scenario pack may exist here long before any release ships it, so the mere
+# presence of cmd/trailmq says nothing about what TrailMQ 3.1.0 contained.
+#
+# What is checked is the other direction. Naming a version for a track means
+# claiming a published artifact exists, so the gate requires the four things
+# that claim depends on:
+#
+#   1. a build — the source or script the artifact is produced from;
+#   2. a workflow that publishes it when a release is published;
+#   3. a step in that workflow that verifies what it built;
+#   4. the version taken from release.yaml, not typed into the workflow.
+#
+# Each entry is track|build|release-workflow. The workflow file is allowed not
+# to exist yet — that is precisely what keeps a track undeclarable until
+# someone builds the thing that ships it.
+#
+# Order matters: entries are listed, not iterated from an associative array,
+# so the gate output is identical on every run.
+TRACKS=(
+  "distribution.evaluation_bundle|.github/scripts/build-evaluation-bundle.sh|.github/workflows/evaluation-bundle.yml"
+  "distribution.launcher|cmd/trailmq|.github/workflows/launcher-release.yml"
+  "distribution.windows_installer|distribution/windows|.github/workflows/launcher-release.yml"
+  "demo.scenario_pack|scenarios|.github/workflows/scenario-pack.yml"
+)
+
+REQUIRED_CONTRACT_KEYS=(
+  version
+  runtime.backend
+  runtime.frontend
+  distribution.evaluation_bundle
+  distribution.launcher
+  distribution.windows_installer
+  demo.scenario_pack
+  demo.compatible_with
+  public_surfaces.docker
+  public_surfaces.ghcr
+  public_surfaces.website.download
+  public_surfaces.website.demo
+)
+
+CONTRACT_VERSION=""
+CONTRACT_FLAT=""
+
+cget() {
+  printf '%s\n' "${CONTRACT_FLAT}" |
+    awk -F'\t' -v k="$1" '$1 == k { print $2; found = 1; exit } END { exit !found }'
+}
+
+if [ ! -f release.yaml ]; then
+  fail "release.yaml is missing" \
+    "the release contract is the source of version truth for this repository"
+elif ! CONTRACT_FLAT="$(scripts/release-contract.sh flatten 2>&1)"; then
+  fail "release.yaml is not in the documented shape" "${CONTRACT_FLAT}"
+  CONTRACT_FLAT=""
+else
+  pass "release.yaml reads in the documented shape"
+
+  # A typo'd key is the failure this catches: 'laucher: 3.1.0' would otherwise
+  # parse fine, declare nothing, and be enforced by no rule at all.
+  missing=0
+  for key in "${REQUIRED_CONTRACT_KEYS[@]}"; do
+    if ! cget "${key}" >/dev/null; then
+      fail "release.yaml is missing a required key" "${key}"
+      missing=$((missing + 1))
+    fi
+  done
+  while IFS= read -r key; do
+    [ -z "${key}" ] && continue
+    known=false
+    for required in "${REQUIRED_CONTRACT_KEYS[@]}"; do
+      [ "${key}" = "${required}" ] && known=true && break
+    done
+    ${known} || fail "release.yaml declares a key no rule enforces" "${key}"
+  done < <(printf '%s\n' "${CONTRACT_FLAT}" | cut -f1)
+  [ "${missing}" -eq 0 ] &&
+    pass "release.yaml declares all ${#REQUIRED_CONTRACT_KEYS[@]} required keys"
+
+  CONTRACT_VERSION="$(cget version || true)"
+  if [[ "${CONTRACT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    pass "release contract names version ${CONTRACT_VERSION}"
+  else
+    fail "release.yaml version is not a release version" "got '${CONTRACT_VERSION}'"
+    CONTRACT_VERSION=""
+  fi
+
+  # Backend and frontend ship as one release. A mixed pair is a combination
+  # nothing was tested against.
+  for component in backend frontend; do
+    declared="$(cget "runtime.${component}" || true)"
+    if [ -n "${CONTRACT_VERSION}" ] && [ "${declared}" = "${CONTRACT_VERSION}" ]; then
+      pass "runtime.${component} names the release version"
+    else
+      fail "runtime.${component} does not name the release version" \
+        "runtime.${component} '${declared}', version '${CONTRACT_VERSION}'"
+    fi
+  done
+
+  for entry in "${TRACKS[@]}"; do
+    track="${entry%%|*}"
+    remainder="${entry#*|}"
+    build="${remainder%%|*}"
+    workflow="${remainder#*|}"
+    declared="$(cget "${track}" || true)"
+
+    if [ "${declared}" = "null" ]; then
+      # Source may exist. Work on a track is not a claim that a release
+      # shipped it, and treating it as one would mean a launcher could not be
+      # written without backdating it into an already-published release.
+      if [ -e "${build}" ]; then
+        pass "${track} is not part of this release (implementation present)"
+      else
+        pass "${track} is not part of this release"
+      fi
+      continue
+    fi
+
+    if [ -n "${CONTRACT_VERSION}" ] && [ "${declared}" != "${CONTRACT_VERSION}" ]; then
+      fail "${track} does not name the release version" \
+        "${track} '${declared}', version '${CONTRACT_VERSION}'"
+      continue
+    fi
+
+    if [ ! -e "${build}" ]; then
+      fail "release.yaml declares ${track} ${declared}, but nothing builds it" \
+        "expected ${build}"
+      continue
+    fi
+
+    if [ ! -f "${workflow}" ]; then
+      fail "release.yaml declares ${track} ${declared}, but nothing publishes it" \
+        "expected a release workflow at ${workflow} — a declared track is a claim that an artifact ships"
+      continue
+    fi
+
+    track_ok=true
+
+    # Published on release, not only when someone remembers to run it.
+    if ! grep -qE '^[[:space:]]*release:[[:space:]]*$' "${workflow}"; then
+      fail "${workflow} does not run when a release is published" \
+        "${track} is declared for ${declared}, so its artifact has to be produced by the release"
+      track_ok=false
+    fi
+
+    # Produces something. A workflow that builds and keeps nothing has not
+    # shipped the artifact the contract is promising.
+    if ! grep -qE 'release upload|upload-artifact' "${workflow}"; then
+      fail "${workflow} publishes no artifact" \
+        "expected a release upload or an artifact upload step"
+      track_ok=false
+    fi
+
+    # Verifies what it built. Checked by requiring the workflow to run one of
+    # this repository's own checks — an approximation of "a smoke test exists",
+    # and a deliberate one: a publish workflow that runs none of the checks
+    # this repository maintains is not verifying anything.
+    if ! grep -q '\.github/scripts/' "${workflow}"; then
+      fail "${workflow} verifies nothing it builds" \
+        "expected it to run at least one check from .github/scripts/"
+      track_ok=false
+    fi
+
+    # Takes the version from the contract rather than repeating it.
+    if ! grep -qE 'release-contract\.sh|release\.yaml' "${workflow}" &&
+      ! grep -qE 'release-contract\.sh|release\.yaml' "${build}" 2>/dev/null; then
+      fail "${track} ${declared} is versioned outside the release contract" \
+        "neither ${workflow} nor ${build} reads release.yaml"
+      track_ok=false
+    fi
+
+    ${track_ok} && pass "${track} ${declared} is built, published and verified"
+  done
+
+  # A scenario pack names the runtime it was written against, which is not
+  # automatically the current release — but it cannot be silent either way.
+  pack="$(cget demo.scenario_pack || true)"
+  compat="$(cget demo.compatible_with || true)"
+  if [ "${pack}" = "null" ] && [ "${compat}" = "null" ]; then
+    pass "no scenario pack is declared, and none claims compatibility"
+  elif [ "${pack}" = "null" ] || [ "${compat}" = "null" ]; then
+    fail "demo.scenario_pack and demo.compatible_with disagree about existing" \
+      "scenario_pack '${pack}', compatible_with '${compat}'"
+  elif [[ "${compat}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    pass "scenario pack ${pack} declares compatibility with runtime ${compat}"
+  else
+    fail "demo.compatible_with is not a runtime version" "got '${compat}'"
+  fi
+
+  # These name obligations this gate cannot verify — it never leaves the
+  # repository. Checking the vocabulary still stops an unreadable value from
+  # reaching the publication stage that does have to act on it.
+  for surface in public_surfaces.docker public_surfaces.ghcr \
+    public_surfaces.website.download public_surfaces.website.demo; do
+    value="$(cget "${surface}" || true)"
+    case "${value}" in
+      required | optional)
+        pass "${surface} is '${value}'" ;;
+      *)
+        fail "${surface} is not a recognized release obligation" \
+          "got '${value}', expected 'required' or 'optional'" ;;
+    esac
+  done
+fi
+
+# --------------------------------------------------------------------------
+section "4. Image references and version consistency"
+# --------------------------------------------------------------------------
+# What a user who sets no environment variable actually pulls has to be the
+# release the contract declares.
 CANONICAL_VERSION=""
 for dir in "${RECIPES[@]}"; do
   json="${COMPOSE_JSON[${dir}]:-}"
@@ -190,16 +405,24 @@ for dir in "${RECIPES[@]}"; do
   if [[ "${backend_image}" =~ ^rainergewalt/trailmq-backend:([0-9][A-Za-z0-9._-]*)$ ]]; then
     CANONICAL_VERSION="${BASH_REMATCH[1]}"
     pass "${dir}: backend default resolves to ${backend_image}"
+
+    if [ -n "${CONTRACT_VERSION}" ] && [ "${CANONICAL_VERSION}" != "${CONTRACT_VERSION}" ]; then
+      fail "${dir}: backend default does not name the release contract version" \
+        "Compose '${CANONICAL_VERSION}', release.yaml '${CONTRACT_VERSION}'"
+    fi
   else
     fail "${dir}: backend default image is not a pinned trailmq-backend tag" "got '${backend_image}'"
   fi
 
-  if [ -n "${CANONICAL_VERSION}" ] &&
-    [ "${frontend_image}" = "rainergewalt/trailmq-frontend:${CANONICAL_VERSION}" ]; then
-    pass "${dir}: frontend default matches the backend release (${CANONICAL_VERSION})"
+  # The contract is the authority. Falling back to the Compose tag only keeps
+  # the message useful in the run where the contract itself already failed.
+  expected_version="${CONTRACT_VERSION:-${CANONICAL_VERSION}}"
+  if [ -n "${expected_version}" ] &&
+    [ "${frontend_image}" = "rainergewalt/trailmq-frontend:${expected_version}" ]; then
+    pass "${dir}: frontend default matches the declared release (${expected_version})"
   else
-    fail "${dir}: frontend default does not match the backend release" \
-      "frontend '${frontend_image}', expected 'rainergewalt/trailmq-frontend:${CANONICAL_VERSION}'"
+    fail "${dir}: frontend default does not match the declared release" \
+      "frontend '${frontend_image}', expected 'rainergewalt/trailmq-frontend:${expected_version}'"
   fi
 
   # A moving tag would let the proxy change under a rebuild, which is exactly
@@ -252,44 +475,58 @@ for dir in "${RECIPES[@]}"; do
   fi
 done
 
-if [ -z "${CANONICAL_VERSION}" ]; then
-  fail "Could not determine the canonical release version from Compose"
+RELEASE_VERSION="${CONTRACT_VERSION:-${CANONICAL_VERSION}}"
+if [ -z "${RELEASE_VERSION}" ]; then
+  fail "Could not determine the release version from release.yaml or Compose"
 else
-  # Every place that names a TrailMQ image must name the release the recipe
-  # actually pulls. Two paths are excluded on purpose: .env.example documents
-  # pinning to an older published release, which is a supported user action
-  # rather than drift, and .github/scripts holds the deliberate counter-examples
-  # the negative controls inject.
+  # Every place that names a TrailMQ image must name the release being shipped.
+  # Three paths are excluded on purpose: .env.example documents pinning to an
+  # older published release, which is a supported user action rather than
+  # drift; .github/scripts holds the deliberate counter-examples the negative
+  # controls inject; and trust-artifacts.md is a dated record of what was
+  # observed on the registries for one specific release, down to the digests
+  # and the transparency-log entry. There the older tag is the subject of the
+  # document, not drift in it — bumping it to the current release would falsify
+  # the observation the document exists to preserve.
   drift=0
   while IFS= read -r hit; do
     file="${hit%%:*}"
     tag="${hit##*:}"
-    if [ "${tag}" != "${CANONICAL_VERSION}" ]; then
+    if [ "${tag}" != "${RELEASE_VERSION}" ]; then
       fail "Stale TrailMQ image reference in ${file}" "${hit}"
       drift=$((drift + 1))
     fi
   done < <(
     git grep -oE 'rainergewalt/trailmq-(backend|frontend):[0-9][A-Za-z0-9._-]*' -- \
-      . ':(exclude).env.example' ':(exclude).github/scripts'
+      . ':(exclude).env.example' ':(exclude).github/scripts' \
+      ':(exclude)distribution/registry/trust-artifacts.md'
   )
   if [ "${drift}" -eq 0 ]; then
-    # This scan already covers ./trailmq, which prints these same defaults for
-    # './trailmq version' — no separate check is needed for the CLI.
-    pass "All TrailMQ image references name ${CANONICAL_VERSION}"
+    pass "All TrailMQ image references name ${RELEASE_VERSION}"
   fi
 
   badge="$(sed -nE 's@.*img\.shields\.io/badge/published%20release-([^-]+)-.*@\1@p' README.md | head -n1)"
-  if [ "${badge}" = "${CANONICAL_VERSION}" ]; then
-    pass "README release badge names ${CANONICAL_VERSION}"
+  if [ "${badge}" = "${RELEASE_VERSION}" ]; then
+    pass "README release badge names ${RELEASE_VERSION}"
   else
     fail "README release badge does not name the shipped release" \
-      "badge '${badge}', Compose default '${CANONICAL_VERSION}'"
+      "badge '${badge}', release ${RELEASE_VERSION}"
   fi
 
+  # The launcher builds its image references from the contract, so this asks
+  # the CLI what it would actually tell a user rather than trusting that the
+  # wiring is still in place. It needs no Docker daemon and no active recipe.
+  cli_version="$(bash ./trailmq version 2>/dev/null | sed -nE 's/^TrailMQ ([0-9][^ ]*) .*/\1/p' | head -n1)"
+  if [ "${cli_version}" = "${RELEASE_VERSION}" ]; then
+    pass "'./trailmq version' reports ${RELEASE_VERSION}"
+  else
+    fail "'./trailmq version' does not report the shipped release" \
+      "CLI '${cli_version:-<no version line>}', release ${RELEASE_VERSION}"
+  fi
 fi
 
 # --------------------------------------------------------------------------
-section "4. Port and proxy wiring"
+section "5. Port and proxy wiring"
 # --------------------------------------------------------------------------
 for dir in "${RECIPES[@]}"; do
   json="${COMPOSE_JSON[${dir}]:-}"
@@ -394,7 +631,7 @@ for dir in "${RECIPES[@]}"; do
 done
 
 # --------------------------------------------------------------------------
-section "5. Hardened deployment invariants (declared configuration)"
+section "6. Hardened deployment invariants (declared configuration)"
 # --------------------------------------------------------------------------
 # These read the rendered Compose configuration. They prove what the published
 # deployment DECLARES. They do not prove effective runtime privileges, image
@@ -456,7 +693,7 @@ for dir in "${RECIPES[@]}"; do
 done
 
 # --------------------------------------------------------------------------
-section "6. Documented first run is still possible"
+section "7. Documented first run is still possible"
 # --------------------------------------------------------------------------
 # Directories the launcher creates before `docker compose up`. Anything Compose
 # bind-mounts must either be committed or appear here.
@@ -528,6 +765,287 @@ while IFS= read -r doc; do
   done < <(grep -oE '\]\([^):]+\)' "${doc}" | sed -E 's/^\]\(//; s/\)$//' | grep -v '^#' | sort -u)
 done < <(git ls-files '*.md')
 [ "${broken}" -eq 0 ] && pass "All relative documentation links resolve"
+
+# A link can resolve in the repository and still be broken in the download,
+# because the bundle ships without the development and CI paths. Staging a
+# throwaway copy through the same script the builder uses means the bundle is
+# checked as a bundle here, at pull-request time, rather than at release time.
+bundle_view="$(mktemp -d)"
+if git ls-files -z | while IFS= read -r -d '' f; do
+  mkdir -p "${bundle_view}/$(dirname "${f}")" && cp -p "${f}" "${bundle_view}/${f}"
+done; then
+  staged_version="${RELEASE_VERSION:-0.0.0}"
+  if ! staging="$(.github/scripts/stage-evaluation-bundle.sh "${bundle_view}" "${staged_version}" 2>&1)"; then
+    fail "The evaluation bundle cannot be staged" "${staging}"
+  elif ! links="$(.github/scripts/check-bundle-links.sh "${bundle_view}" 2>&1)"; then
+    fail "Documentation links that resolve here would break in the bundle" "${links}"
+  else
+    pass "Bundle documentation is self-contained (${links})"
+  fi
+fi
+rm -rf "${bundle_view}"
+
+# --------------------------------------------------------------------------
+section "8. Registry surfaces"
+# --------------------------------------------------------------------------
+# Docker Hub and GHCR are the first TrailMQ page many people ever see, and for a
+# closed-source product they are a trust surface rather than a mirror of the
+# README. Their text lives in distribution/registry/ so it can be gated; what
+# cannot be gated from here — whether the page was actually updated — belongs to
+# the publication stage.
+REGISTRY_DIR="distribution/registry"
+LABELS_FILE="${REGISTRY_DIR}/oci-labels.yaml"
+KNOWN_PLACEHOLDERS="version backend_version frontend_version"
+
+# Components come from the contract, so adding a third published image makes
+# its registry surface mandatory without touching this gate.
+mapfile -t COMPONENTS < <(
+  printf '%s\n' "${CONTRACT_FLAT}" | cut -f1 | sed -n 's/^runtime\.//p' | sort
+)
+
+if [ "${#COMPONENTS[@]}" -eq 0 ]; then
+  fail "No published components found in the release contract" \
+    "expected at least one runtime.* entry"
+else
+  for component in "${COMPONENTS[@]}"; do
+    text="${REGISTRY_DIR}/trailmq-${component}.md"
+
+    if [ ! -f "${text}" ]; then
+      fail "${component} is published but has no canonical registry text" \
+        "expected ${text}"
+      continue
+    fi
+
+    # A literal version in registry text is a version nobody updates. This is
+    # the whole reason the placeholders exist.
+    literal="$(grep -nE '[0-9]+\.[0-9]+\.[0-9]+' "${text}" | head -n3)"
+    if [ -n "${literal}" ]; then
+      fail "${text} contains a literal version" \
+        "use a placeholder instead: $(printf '%s' "${literal}" | tr '\n' ' ')"
+    else
+      pass "${text} names no literal version"
+    fi
+
+    unknown=0
+    while IFS= read -r name; do
+      [ -z "${name}" ] && continue
+      case " ${KNOWN_PLACEHOLDERS} " in
+        *" ${name} "*) ;;
+        *)
+          fail "${text} uses an unknown placeholder" \
+            "{{${name}}} — known: ${KNOWN_PLACEHOLDERS}"
+          unknown=$((unknown + 1))
+          ;;
+      esac
+    done < <(grep -oE '\{\{[a-z_]+\}\}' "${text}" | sed -E 's/^\{\{|\}\}$//g' | sort -u)
+    [ "${unknown}" -eq 0 ] && pass "${text} uses only known placeholders"
+
+    # The rendered page is what a stranger reads, so the gate checks that
+    # artifact rather than the template it came from.
+    if ! rendered="$(.github/scripts/render-registry.sh text "${component}" 2>&1)"; then
+      fail "${component} registry text does not render" "${rendered}"
+      continue
+    fi
+
+    if [ -n "${RELEASE_VERSION}" ] &&
+      printf '%s' "${rendered}" | grep -qF "${RELEASE_VERSION}"; then
+      pass "${component} registry text renders naming ${RELEASE_VERSION}"
+    else
+      fail "${component} registry text renders without naming the release" \
+        "expected ${RELEASE_VERSION} to appear once rendered"
+    fi
+
+    # One text serves both registries, so it has to point at both. A page that
+    # names only Docker Hub is how the GHCR package ends up described
+    # differently.
+    for registry in "rainergewalt/trailmq-${component}" "ghcr.io/rainergewalt/trailmq-${component}"; do
+      if printf '%s' "${rendered}" | grep -qF "${registry}"; then
+        pass "${component} registry text names ${registry}"
+      else
+        fail "${component} registry text does not name ${registry}" \
+          "one text serves Docker Hub and GHCR — both pull paths belong in it"
+      fi
+    done
+
+    if grep -qF "This is a runtime image." "${text}"; then
+      pass "${component} registry text separates the runtime image from the evaluation package"
+    else
+      fail "${component} registry text does not mark the image as a runtime image" \
+        "a visitor who starts it standalone gets a broken container, not a product"
+    fi
+  done
+
+  # The Preview ships exactly these surfaces. Naming one that was removed, or
+  # omitting one that shipped, is the stale-surface problem this catches.
+  frontend_text="${REGISTRY_DIR}/trailmq-frontend.md"
+  if [ -f "${frontend_text}" ]; then
+    missing_surface=0
+    for surface in Overview Access Clients Activity; do
+      grep -qF "${surface}" "${frontend_text}" ||
+        {
+          fail "Frontend registry text does not name the '${surface}' surface"
+          missing_surface=$((missing_surface + 1))
+        }
+    done
+    [ "${missing_surface}" -eq 0 ] &&
+      pass "Frontend registry text names all four Preview surfaces"
+  fi
+fi
+
+# --- OCI labels ------------------------------------------------------------
+if [ ! -f "${LABELS_FILE}" ]; then
+  fail "${LABELS_FILE} is missing" "the published images have no canonical label set"
+elif ! labels_flat="$(scripts/release-contract.sh flatten "${LABELS_FILE}" 2>&1)"; then
+  fail "${LABELS_FILE} is not in the documented shape" "${labels_flat}"
+else
+  pass "${LABELS_FILE} reads in the documented shape"
+
+  for component in "${COMPONENTS[@]}"; do
+    if ! emitted="$(.github/scripts/render-registry.sh labels "${component}" 2>&1)"; then
+      fail "OCI labels for ${component} do not render" "${emitted}"
+      continue
+    fi
+
+    missing_label=0
+    for label in title description url source documentation vendor licenses \
+      version revision created; do
+      value="$(printf '%s\n' "${emitted}" |
+        sed -n "s|^org\.opencontainers\.image\.${label}=||p" | head -n1)"
+      if [ -z "${value}" ]; then
+        fail "${component}: OCI label '${label}' is empty or missing"
+        missing_label=$((missing_label + 1))
+        continue
+      fi
+
+      case "${label}" in
+        url | source | documentation)
+          [[ "${value}" == https://* ]] ||
+            {
+              fail "${component}: OCI label '${label}' is not an https URL" "got '${value}'"
+              missing_label=$((missing_label + 1))
+            }
+          ;;
+        version)
+          if [ -n "${RELEASE_VERSION}" ] && [ "${value}" != "${RELEASE_VERSION}" ]; then
+            fail "${component}: OCI version label does not name the release" \
+              "label '${value}', release ${RELEASE_VERSION}"
+            missing_label=$((missing_label + 1))
+          fi
+          ;;
+        licenses)
+          # TrailMQ is proprietary. An OSI identifier here would tell every
+          # scanner, and every reader, something untrue about what a puller
+          # may do with the image.
+          case "${value}" in
+            MIT | Apache-2.0 | BSD-2-Clause | BSD-3-Clause | ISC | Unlicense | \
+              GPL-2.0* | GPL-3.0* | LGPL-* | AGPL-* | MPL-2.0)
+              fail "${component}: OCI licenses label claims an open-source license" \
+                "got '${value}' — TrailMQ ships under a proprietary evaluation license"
+              missing_label=$((missing_label + 1))
+              ;;
+          esac
+          ;;
+      esac
+    done
+    [ "${missing_label}" -eq 0 ] &&
+      pass "${component}: OCI labels are complete and consistent with the release"
+  done
+fi
+
+# --------------------------------------------------------------------------
+section "9. Scenario pack"
+# --------------------------------------------------------------------------
+# Scenarios are the product's explanation format, and the same files are meant
+# to drive both the local demo and the website walkthrough. A story that only
+# one of them can tell, or that describes behaviour a release no longer has, is
+# worse than no story — so the parts that can be checked from here are.
+SCENARIO_DIR="scenarios"
+
+if [ ! -d "${SCENARIO_DIR}" ]; then
+  skip "no scenario pack in this tree"
+else
+  mapfile -t SCENARIO_FILES < <(find "${SCENARIO_DIR}" -maxdepth 1 -name '*.json' -type f | sort)
+
+  if [ "${#SCENARIO_FILES[@]}" -eq 0 ]; then
+    fail "${SCENARIO_DIR}/ exists but contains no scenarios"
+  fi
+
+  for file in "${SCENARIO_FILES[@]}"; do
+    name="$(basename "${file}" .json)"
+
+    if ! jq -e . "${file}" >/dev/null 2>&1; then
+      fail "${file} is not valid JSON" "$(jq . "${file}" 2>&1 | head -n2)"
+      continue
+    fi
+
+    # The file name is how the command line names a scenario and how a URL
+    # addresses it. Disagreement means one of the two is wrong.
+    id="$(jq -r '.id // ""' "${file}")"
+    if [ "${id}" != "${name}" ]; then
+      fail "${file}: id does not match the file name" "id '${id}', file '${name}'"
+    fi
+
+    missing="$(jq -r '
+      [ if (.title // "") == "" then "title" else empty end,
+        if (.question // "") == "" then "question" else empty end,
+        if (.summary // "") == "" then "summary" else empty end,
+        if (.compatibleWith // "") == "" then "compatibleWith" else empty end,
+        if (.closing.headline // "") == "" then "closing.headline" else empty end,
+        if (.closing.explanation // "") == "" then "closing.explanation" else empty end,
+        if ((.steps // []) | length) == 0 then "steps" else empty end
+      ] | join(", ")' "${file}")"
+    if [ -n "${missing}" ]; then
+      fail "${file} is missing required fields" "${missing}"
+      continue
+    fi
+
+    # Every step carries all three disclosure levels. A step with no headline
+    # reads as protocol trivia to the audience this exists for; one with no
+    # explanation cannot answer the question the scenario claims to answer.
+    incomplete="$(jq -r '
+      [ .steps[] | select((.headline // "") == "" or (.explanation // "") == "" or (.topic // "") == "")
+        | .id // "<no id>" ] | join(", ")' "${file}")"
+    if [ -n "${incomplete}" ]; then
+      fail "${file}: steps missing a headline, explanation or topic" "${incomplete}"
+    fi
+
+    # A step kind the runner does not implement would be silently skipped.
+    unknown_kind="$(jq -r '
+      [ .steps[] | select((.kind // "") as $k
+        | ["publish_denied","publish_delivered","decision_record"] | index($k) | not)
+        | "\(.id // "<no id>") (\(.kind // "none"))" ] | join(", ")' "${file}")"
+    if [ -n "${unknown_kind}" ]; then
+      fail "${file}: steps with an unknown kind" "${unknown_kind}"
+    fi
+
+    # Actors are bound to real evaluation identities. A step naming an actor
+    # the scenario never defines cannot run.
+    if ! dangling="$(jq -er '
+      . as $doc
+      | (($doc.actors // []) | map(.key)) as $keys
+      | [ ($doc.steps // [])[]
+          | (.actor // "") as $actor
+          | select($actor != "" and ($keys | index($actor) | not))
+          | $actor ]
+      | unique | join(", ")' "${file}" 2>&1)"; then
+      # A query that errors reports nothing, which would look exactly like a
+      # scenario with no problem. Treat it as a finding, not as silence.
+      fail "${file}: the actor references could not be checked" "${dangling}"
+    elif [ -n "${dangling}" ]; then
+      fail "${file}: steps refer to actors the scenario does not define" "${dangling}"
+    fi
+
+    # The scenario states which runtime it was written against. Letting that
+    # fall behind is how a demo starts describing behaviour that changed.
+    compatible="$(jq -r '.compatibleWith // ""' "${file}")"
+    if [ -n "${RELEASE_VERSION}" ] && [ "${compatible}" != "${RELEASE_VERSION}" ]; then
+      fail "${file} was written for another release" \
+        "compatibleWith '${compatible}', this release is ${RELEASE_VERSION}"
+    else
+      pass "${file} is a complete scenario for ${compatible}"
+    fi
+  done
+fi
 
 # --------------------------------------------------------------------------
 section "Result"

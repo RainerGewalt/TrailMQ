@@ -31,14 +31,15 @@ Review architecture and evaluation boundaries
 ```
 
 1. Run `./trailmq quickstart` and `./trailmq verify`.
-2. Open the Preview and locate the blocked decision under **Activity**.
+2. Open the Preview, filter **Activity** by **Outcome: Denied**, and read the
+   reason the publish was refused.
 3. Publish one value from your own MQTT client.
 4. Choose a scenario:
    - authorization risk → [Denied by design](scenarios/02-denied-actions.md);
    - namespace governance → [Govern a namespace](scenarios/03-governed-namespace.md);
    - record integrity → [Tamper evidence](scenarios/04-tamper-evidence.md);
    - silent delivery failure → [Message policy and QoS](scenarios/07-message-policy-qos.md).
-5. Read the [evaluation boundaries](../README.md#evaluation-boundaries) before
+5. Read the [evaluation boundaries](../README.md#trust-and-evidence-scope) before
    making a production-fit or compliance assessment.
 
 ## Product model in three lines
@@ -65,8 +66,9 @@ broker boundary and keeps the decision evidence available for later review.
 
 ## Current evaluation boundaries
 
-- The public Preview is primarily for reading and reviewing. Use configuration
-  files and the REST API for operational changes.
+- The Preview manages evaluation users and topic rules from the **Access**
+  surface. Wider operational changes go through configuration files and the
+  REST API.
 - Removing a configured user does not revoke a user already stored by merge
   sync. Use the documented [offboarding procedure](access-management.md#revoke-an-evaluation-user).
 - The automated chain check covers the system/action audit chain. Do not infer

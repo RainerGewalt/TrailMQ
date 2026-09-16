@@ -6,7 +6,46 @@ connect / publish / subscribe is allowed, and what a denied action looks like
 from the client side.
 
 All commands assume the default local evaluation stack
-(`./trailmq quickstart`) and are run from the repository root.
+(`./trailmq try`) and are run from the repository root.
+
+## Fastest path: let the CLI tell you
+
+You do not need to read this page to connect a client. Run:
+
+```bash
+./trailmq connect
+```
+
+It prints the live values of the running stack — endpoint, port, CA path, the
+generated passwords, ready-to-paste `mosquitto` commands, the MQTT Explorer
+fields, and one topic that is allowed plus one that is refused. Nothing on this
+page is required first; the rest of it explains *why* the refused one is
+refused.
+
+Sharing that output, or recording your screen? `./trailmq connect --redact`
+prints the same page with every password masked.
+
+## MQTT Explorer
+
+[MQTT Explorer](https://mqtt-explorer.com/) is the quickest way to see TrailMQ
+from a normal client. Create a connection with these fields:
+
+| Field | Value |
+| ----- | ----- |
+| Name | `TrailMQ` |
+| Protocol | `mqtt://` |
+| Host / Port | `localhost` / `8883` |
+| Validate certificate | on |
+| Encryption (tls) | on |
+| Username / Password | `testuser` / *(from `./trailmq connect`)* |
+| Advanced → Certificates → CA certificate | `recipes/secure-mqtt-core/certs/ca_cert.pem` |
+
+Then subscribe to `public/#` and publish to `public/demo/temperature` — it
+arrives. Publish to `restricted/ops/config` — it does not, and the refusal shows
+up in the Web UI under **Activity**, filtered by **Outcome: Denied**.
+
+Use `testadmin` instead if you want to subscribe as well: `testuser` holds the
+publish-only `publisher` role.
 
 ## The three things every client needs
 
