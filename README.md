@@ -427,8 +427,12 @@ MQTT/REST allow-deny checks, dependency and static analysis, secret and
 filesystem scanning, and Dockerfile linting.
 
 Treat test counts, signatures, image digests, SBOMs, and attestations as evidence
-for the specific release tag you evaluate. Security reports follow
-[SECURITY.md](SECURITY.md).
+for the specific release tag you evaluate. Every published release carries a
+record of its own, holding that release's image digests, its signature
+verification and the limits of both — for the release this repository currently
+ships, that is the
+[v3.1.1 release record](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1).
+Security reports follow [SECURITY.md](SECURITY.md).
 
 Published images carry an SBOM, `mode=max` provenance and a keyless cosign
 signature, all attached to the published index rather than to extra tags. The
