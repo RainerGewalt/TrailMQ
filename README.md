@@ -464,16 +464,9 @@ is kept as it was written rather than renumbered to each new release, because a
 record of what was observed stops being one the moment it is edited to match
 something else.
 
-**TrailMQ 3.1.0 was published on a documented release-owner decision after the
-automated runtime gate refused the candidate** over unresolved validation and
-test-harness findings. The raw gate result was preserved rather than
-reclassified, the audit-immutability contract executed and passed in that same
-run, and no required audit evidence was lost. The
-[v3.1.0 release record](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.0)
-holds the exact evidence, image digests, and validation detail.
-
-Stating this is the same standard this product asks of its own evidence: a gate
-that refused is reported as having refused.
+The [v3.1.0 release record](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.0)
+holds the observed evidence, image digests, and validation detail for that
+published release.
 
 ## Editions
 
