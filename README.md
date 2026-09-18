@@ -23,7 +23,9 @@ enters the system:
 - **What happened?**
 - **Why was it allowed or denied?**
 
-Standard MQTT clients connect to it directly.
+Standard MQTT clients connect to it directly. TrailMQ is not open source: this
+repository is the free evaluation package, and the runtime ships as signed
+images ([what that means](docs/faq.md#is-trailmq-open-source)).
 
 ## One Denied Decision
 
@@ -137,7 +139,17 @@ lifecycle operations.
 
 ## Trust And Evidence Scope
 
-The product states these limits in its own UI next to the verdict.
+"Was it blocked?" is three questions, and most systems answer one. TrailMQ keeps
+them apart:
+
+| | |
+| --- | --- |
+| **Outcome** | Was it permitted? Two independent gates decide it: the role's permission, and the topic rule that brings the topic into scope. |
+| **Evidence** | Was it written down? Refusals, sign-ins and administrative changes are always recorded. |
+| **Integrity** | Is the record covered? A hash-linked chain covers system and action entries and reports its own scope. |
+
+Conflating these three is how a system ends up claiming more than it can show.
+The product states the limits below in its own UI, next to the verdict.
 
 **What the integrity verdict covers.** The hash-linked chain walks the
 system/action audit store: sign-ins, administrative changes, identity and role
@@ -199,6 +211,7 @@ Security reports follow [SECURITY.md](SECURITY.md).
 | --- | --- |
 | [Documentation home](docs/README.md) | Choose the shortest path for your task |
 | [Quickstart](docs/quickstart.md) | First successful proof and login |
+| [FAQ](docs/faq.md) | Why a publish was denied, auth vs. authz, delivery and chain scope |
 | [Connect a client](docs/connect-a-client.md) | CLI, Python, Node.js, WebSocket and access rules |
 | [Guided scenarios](docs/scenarios/README.md) | Allow, deny, govern, queue, QoS and tamper exercises |
 | [Access management](docs/access-management.md) | Add, rotate and safely revoke evaluation users |
