@@ -32,6 +32,9 @@ build/
 /trailmq-*-arm64
 /trailmq-*.exe
 
+# --- Local AI / agent workspace ---
+/.ai/
+
 # --- Editor / OS junk ---
 .DS_Store
 .idea/

@@ -1,7 +1,7 @@
 # Security Policy
 
-TrailMQ is an audit-first control plane for MQTT, so security reports are
-handled privately first.
+TrailMQ controls MQTT access and keeps relevant access decisions reviewable, so
+security reports are handled privately first.
 
 ## Reporting a vulnerability
 
