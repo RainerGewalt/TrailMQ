@@ -12,6 +12,10 @@
 **Policy-controlled MQTT for industrial systems, with attributable and
 reviewable access decisions.**
 
+When an MQTT action is refused on a plant network, "it did not work" is not an
+answer. Someone still has to know who acted, under which role, on which topic,
+and why the answer was no.
+
 TrailMQ is a self-hosted MQTT broker that answers three questions where traffic
 enters the system:
 
@@ -151,8 +155,13 @@ functions, life-safety systems, emergency control, or use where failure could
 directly result in injury, physical damage, or interruption of critical
 operations. See [LICENSE](LICENSE).
 
-The remaining boundaries — local demo assets, config merge semantics, what the
-Preview counters are not, and what TrailMQ does not certify on its own — are
+**What it is not.** A permitted publish is an authorization result, not proof of
+delivery; confirm delivery with `./trailmq verify`, a real subscriber and the
+Activity decision details. And TrailMQ is a technical building block, not WORM
+storage, a notarization service, a CE declaration, a GMP/GxP validation, an
+Annex 11 package or a 21 CFR Part 11 package.
+
+The remaining boundaries — local demo assets and config merge semantics — are
 listed under
 [current evaluation boundaries](docs/README.md#current-evaluation-boundaries).
 
