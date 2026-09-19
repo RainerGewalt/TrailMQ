@@ -109,11 +109,24 @@ jobs:
       # The same script the pull-request workflow runs, so an artifact cannot
       # be published having passed a weaker check than the one guarding the
       # branch it came from.
+      # Authenticode signing belongs between the build and this step. It is not
+      # configured yet, so the verification below reports the signature instead
+      # of demanding one — and starts demanding one by itself the moment the
+      # release contract names a windows_installer. See distribution/windows.
       - name: Verify the built artifacts
         shell: pwsh
         run: |
           $version = (bash scripts/release-contract.sh get version).Trim()
-          distribution/windows/verify-artifacts.ps1 -Version $version -DistDir dist
+          $installer = (bash scripts/release-contract.sh get distribution.windows_installer).Trim()
+
+          # The contract may only name a version once this workflow has produced
+          # the evidence. From that point the evidence includes a publisher.
+          if ($installer -and $installer -ne 'null') {
+            Write-Host "release contract claims windows_installer $installer — signature required"
+            distribution/windows/verify-artifacts.ps1 -Version $version -DistDir dist -RequireSignature
+          } else {
+            distribution/windows/verify-artifacts.ps1 -Version $version -DistDir dist
+          }
 
       - name: Publish checksums
         shell: bash
