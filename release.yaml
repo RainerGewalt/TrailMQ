@@ -61,13 +61,26 @@ runtime:
 
 # What a user can download and run.
 #
-# The launcher exists in cmd/trailmq and is built and tested on every change,
-# but no release publishes a binary yet, so it is not part of this release.
-# It becomes a version here when a workflow ships it.
+# windows_trust_mode is a second, independent dimension: distributing an
+# artifact and vouching for who published it are different decisions, and
+# collapsing them would mean either shipping nothing until signing is funded,
+# or shipping something the contract does not describe. `null` means not
+# distributed — it never describes a file the public can already download.
+#
+#   unsigned_evaluation  published, carrying no Authenticode signature. Windows
+#                        will report an unknown publisher; the payload says so
+#                        and points at the checksums.
+#   authenticode         published and signed. Requires a signing identity this
+#                        repository does not have yet.
+#
+# Both are enforced. Under unsigned_evaluation a *signed* artifact fails the
+# gate too, because the release notes would then describe something the file
+# is not.
 distribution:
   evaluation_bundle: 3.1.1
-  launcher: null
-  windows_installer: null
+  launcher: 3.1.1
+  windows_installer: 3.1.1
+  windows_trust_mode: unsigned_evaluation
 
 # The scenario pack behind `./trailmq demo` and the website demo. Both are
 # still to be built; `compatible_with` names the runtime the pack was written

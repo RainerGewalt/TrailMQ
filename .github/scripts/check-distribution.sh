@@ -215,6 +215,7 @@ REQUIRED_CONTRACT_KEYS=(
   distribution.evaluation_bundle
   distribution.launcher
   distribution.windows_installer
+  distribution.windows_trust_mode
   demo.scenario_pack
   demo.compatible_with
   public_surfaces.docker
@@ -354,6 +355,66 @@ else
 
     ${track_ok} && pass "${track} ${declared} is built, published and verified"
   done
+
+  # Distributing a Windows artifact and vouching for who published it are two
+  # decisions, so the contract states them separately. `null` means nothing is
+  # distributed; it must never describe a file the public can already download.
+  # A declared track therefore has to name its trust mode, and every named mode
+  # is enforced — "unsigned" is a promise about the artifact like any other.
+  trust="$(cget distribution.windows_trust_mode || true)"
+  installer="$(cget distribution.windows_installer || true)"
+  launcher_verify="distribution/windows/verify-artifacts.ps1"
+  windows_payload=".github/scripts/build-windows-package.sh"
+
+  case "${trust}" in
+    null | unsigned_evaluation | authenticode)
+      pass "distribution.windows_trust_mode is ${trust}" ;;
+    *)
+      fail "distribution.windows_trust_mode is not a known mode" \
+        "got '${trust}', expected null, unsigned_evaluation or authenticode" ;;
+  esac
+
+  if [ "${installer}" = "null" ] && [ "${trust}" != "null" ]; then
+    fail "a trust mode is declared for a Windows installer that is not distributed" \
+      "distribution.windows_installer is null, so windows_trust_mode must be null too"
+  elif [ "${installer}" != "null" ] && [ "${trust}" = "null" ]; then
+    fail "distribution.windows_installer ${installer} states no trust mode" \
+      "a downloadable Windows artifact has to say whether a publisher vouches for it"
+  elif [ "${installer}" != "null" ]; then
+    pass "distribution.windows_installer ${installer} is distributed as ${trust}"
+  fi
+
+  if [ "${trust}" != "null" ]; then
+    # The mode has to reach the verification, or it is a line in a file.
+    if grep -q '\-TrustMode' .github/workflows/launcher-release.yml; then
+      pass "the release workflow verifies against the declared trust mode"
+    else
+      fail "the release workflow ignores distribution.windows_trust_mode" \
+        "expected .github/workflows/launcher-release.yml to pass -TrustMode to ${launcher_verify}"
+    fi
+  fi
+
+  if [ "${trust}" = "unsigned_evaluation" ]; then
+    # Someone meeting SmartScreen needs the explanation in the folder they just
+    # extracted, not in a repository they have not opened.
+    if grep -q 'Is this signed?' "${windows_payload}" &&
+      grep -q 'publisher is unknown' "${windows_payload}" &&
+      grep -q 'SHA256SUMS-windows' "${windows_payload}"; then
+      pass "the Windows payload warns the downloader that it is unsigned"
+    else
+      fail "an unsigned_evaluation distribution ships without the warning" \
+        "expected ${windows_payload} to tell the downloader about the unknown publisher and the checksum"
+    fi
+
+    # Integrity and publisher identity are different claims, and the payload is
+    # the one place tempted to let a checksum stand in for a signature.
+    if grep -q 'does not establish publisher identity' "${windows_payload}"; then
+      pass "the Windows payload keeps integrity apart from publisher identity"
+    else
+      fail "the Windows payload offers a checksum as publisher identity" \
+        "expected ${windows_payload} to state that the checksum does not establish publisher identity"
+    fi
+  fi
 
   # A scenario pack names the runtime it was written against, which is not
   # automatically the current release — but it cannot be silent either way.
