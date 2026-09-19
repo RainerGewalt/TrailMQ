@@ -14,19 +14,26 @@
 # -SkipInstaller runs only the portable-archive checks, for a run that did not
 # build the installer.
 #
-# -RequireSignature turns the Authenticode report into a gate. Without it the
-# signature is reported and nothing fails, because an unsigned build is the
-# honest state of a launcher that is not published yet. The release workflow
-# passes it as soon as the release contract names a windows_installer, so the
-# first release that claims a Windows installer cannot ship one that says
-# "unknown publisher".
+# -TrustMode is the release contract's windows_trust_mode, and it decides what
+# the Authenticode status has to be rather than merely reporting it:
+#
+#   (omitted)            report the status, fail on nothing. The state of a
+#                        launcher that is not published.
+#   unsigned_evaluation  every artifact must be unsigned. A signed one is not a
+#                        bonus here — it is an artifact the contract does not
+#                        describe, published under a promise of no publisher.
+#   authenticode         every artifact must carry a valid signature.
+#
+# Both published modes are gates. Distribution and trust are separate
+# decisions, and each one has to be kept honest on its own.
 
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$Version,
     [Parameter(Mandatory = $true)][string]$DistDir,
     [switch]$SkipInstaller,
-    [switch]$RequireSignature
+    [ValidateSet('', 'unsigned_evaluation', 'authenticode')]
+    [string]$TrustMode = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,15 +48,25 @@ function Assert-Exit([int]$Code, [string]$What) {
 function Assert-Signature([string]$Path, [string]$What) {
     $sig = Get-AuthenticodeSignature -FilePath $Path
     $subject = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { '<none>' }
+    $signed = $sig.Status -eq 'Valid'
+    $state = if ($signed) { "signed by $subject" } else { "not validly signed (status $($sig.Status), signer $subject)" }
 
-    if ($sig.Status -eq 'Valid') {
-        Write-Host "  $What is signed by $subject"
-        return
+    switch ($TrustMode) {
+        'authenticode' {
+            if (-not $signed) { throw "$What is $state" }
+            Write-Host "  $What is $state"
+        }
+        'unsigned_evaluation' {
+            # The release promises no publisher identity. Shipping a signed
+            # artifact under that promise is as wrong as the reverse: it would
+            # mean the release notes describe something the file is not.
+            if ($signed) {
+                throw "$What is $state, but the contract declares unsigned_evaluation"
+            }
+            Write-Host "  $What is unsigned, as the contract declares ($($sig.Status))"
+        }
+        default { Write-Host "  $What is $state" }
     }
-
-    $detail = "$What is not validly signed (status $($sig.Status), signer $subject)"
-    if ($RequireSignature) { throw $detail }
-    Write-Host "  $detail"
 }
 
 $name = "TrailMQ-$Version-windows-x64"
