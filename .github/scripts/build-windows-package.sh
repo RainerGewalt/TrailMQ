@@ -125,6 +125,19 @@ Run \`trailmq.exe stop\`, then delete this folder. Everything TrailMQ
 generated lives inside it. The downloaded container images are removed with
 \`docker image rm\`.
 
+## Is this signed?
+
+No. This evaluation build carries no Authenticode signature, so Windows will
+warn about an unknown publisher. That is expected, and it is not evidence of
+tampering — it means nothing vouches for who published the file, so check the
+download itself instead:
+
+    certutil -hashfile TrailMQ-Setup-${VERSION}.exe SHA256
+
+Compare the result with SHA256SUMS-windows from the same release. Signing is
+planned for the first release distributed for production use, not for this
+evaluation.
+
 ## Scope
 
 This is a local, non-production evaluation. Production and commercial

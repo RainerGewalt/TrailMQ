@@ -3,17 +3,17 @@
 **The question everyone asks first:** MQTT brokers already exist and they work.
 What does TrailMQ actually do differently?
 
-This scenario answers it by running **the exact same three commands** against a
-standard MQTT broker and against TrailMQ, side by side. No slides, no claims —
-just two terminals and two very different outcomes.
+This scenario compares three access questions using an explicitly open
+Mosquitto configuration and TrailMQ's evaluation policy. It demonstrates these
+two configurations; it does not benchmark secured brokers or establish that
+other products lack access control, logging or investigation tools.
 
 Time: ~5 minutes. You need Docker and `mosquitto_pub` / `mosquitto_sub`.
 
 ## The setup
 
-Start a standard broker next to your running TrailMQ stack. This is
-`eclipse-mosquitto` in its default open configuration — the way countless
-MQTT deployments actually run:
+Start a broker next to your running TrailMQ stack. The command explicitly
+selects Mosquitto's no-authentication example configuration:
 
 ```bash
 docker run -d --name plain-mosquitto -p 11883:1883 \
@@ -37,7 +37,9 @@ echo "exit=$?"
 exit=0
 ```
 
-No username. No password. No certificate. The shutdown command went through.
+No username, password or certificate was supplied, and the client command
+returned success. This QoS 0 client result does not establish subscriber
+delivery; no subscriber observation is made in this step.
 
 **TrailMQ:**
 
@@ -90,7 +92,7 @@ Connection error: Connection Refused: not authorised.
 
 This is the part that matters most, and it is where the gap is widest.
 
-**Standard broker** — everything it knows:
+**Open Mosquitto configuration** — the log output used in this example:
 
 ```bash
 docker logs plain-mosquitto | tail -4
@@ -103,10 +105,10 @@ Client mosq-JcA10SwAsAJvaIkhgJ [172.17.0.1:53000] disconnected.
 New client connected from 172.17.0.1:53016 as mosq-7M6CFMC81vzucxWF6n (p4, c1, k60, u'definitely-not-a-real-user').
 ```
 
-Someone connected. Someone disconnected. **Which topic was written to is not
-in there. What was sent is not in there. Whether it should have been allowed
-was never a question.** If you were asked six months later "who sent the
-shutdown command?", this log cannot answer it.
+These example lines show connection activity. They do not establish a publish's
+topic, authorization reason or subscriber receipt. That is the limit of this
+configuration and observation, not a statement about every possible broker
+logging or security configuration.
 
 **TrailMQ** — the decision itself is the record:
 
@@ -122,19 +124,21 @@ Who (`testuser`), with what authority (`roles=[publisher]`), tried to do what
 (`publish`), where (`restricted/ops/config`), and what was decided (`DENY`).
 
 Then open **http://localhost/trailmq/** → **Activity** → filter
-**Outcome: Denied**: the same denial as a recorded, timestamped event —
-hash-linked to its predecessor so later edits become detectable
-([scenario 4](04-tamper-evidence.md) proves that part).
+**Outcome: Denied**: inspect the refusal's recorded identity, client, topic,
+outcome and supported reason. This MQTT decision is **Outside validated scope**:
+the built-in integrity verdict does not validate it. [Scenario 4](04-tamper-evidence.md)
+tests the separate system/action audit chain; it does not prove integrity of
+this MQTT refusal.
 
 ## The scoreboard
 
-| | Standard broker | TrailMQ |
+| | Open Mosquitto configuration used here | TrailMQ evaluation policy |
 | --- | --- | --- |
 | Anonymous write to a sensitive topic | Accepted | Refused at connect |
 | Unverified identity | Accepted as-is | Rejected |
-| Authenticated but unauthorized write | *(no such concept)* | Blocked, connection dropped |
-| Record of which topic was written | No | Yes |
-| Record of *why* it was allowed or denied | No | Yes — user, role, action, topic |
+| Authenticated but unauthorized write | Authentication and ACL checks not configured in this example | Blocked; this QoS 1 example drops the connection |
+| Recorded target of the demonstrated refused operation | Not shown in this example log | Yes, for the demonstrated recorded refusal |
+| Attributable refusal and reason in this example | Not shown by this configuration's log | Recorded decision with identity, action, topic and supported reason |
 | Can recorded system/action history be checked for tampering | No | Yes, SHA-256 chain |
 
 ## To be fair to the broker
@@ -142,14 +146,14 @@ hash-linked to its predecessor so later edits become detectable
 A standard broker **can** be configured with TLS, password files and ACL
 files. The difference isn't that it's impossible — it's:
 
-- **Defaults.** The open configuration above is a realistic starting point;
-  TrailMQ fails closed by default (`restricted/#` admin-only, unknown
-  namespaces deny-by-default).
-- **Evidence.** Broker ACLs decide and then forget. TrailMQ treats the
-  decision as something worth recording, attributing and verifying later.
-- **Reviewability.** ACL files are edited on a server. TrailMQ exposes the
-  *effective* configuration and decisions over an API and a UI, so you can
-  answer questions without SSH access.
+- **Evaluation policy.** TrailMQ's evaluation restricts `restricted/#` to
+  administrators and denies unknown namespaces until a rule grants access.
+- **Attribution.** The demonstrated refusal carries the identity, operation,
+  target and reason needed to investigate it.
+- **Reviewability.** TrailMQ brings enforcement and decision review into one
+  workflow through its API and Activity UI. Compare that workflow against your
+  own configured broker and investigation process, rather than inferring a
+  general capability difference from this open example.
 
 The public chain check covers TrailMQ's system/action audit store. It is local
 tamper evidence, not external notarization, WORM storage, or a claim that every
@@ -158,8 +162,7 @@ defines the trust boundary precisely.
 
 That is the whole product in one sentence:
 
-> A broker moves messages. TrailMQ decides about them, enforces the decision,
-> and keeps a record you can check afterwards.
+> TrailMQ brings MQTT access enforcement and decision review into one workflow.
 
 ## Clean up
 
