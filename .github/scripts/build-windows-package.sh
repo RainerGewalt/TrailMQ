@@ -127,16 +127,23 @@ generated lives inside it. The downloaded container images are removed with
 
 ## Is this signed?
 
-No. This evaluation build carries no Authenticode signature, so Windows will
-warn about an unknown publisher. That is expected, and it is not evidence of
-tampering — it means nothing vouches for who published the file, so check the
-download itself instead:
+No. This evaluation build carries no Authenticode signature, so Windows may
+warn that the publisher is unknown.
+
+That warning does not by itself mean the file was modified. It means Windows
+cannot verify a trusted publisher identity for this binary.
+
+You can still check that what you downloaded is the artifact this release
+published:
 
     certutil -hashfile TrailMQ-Setup-${VERSION}.exe SHA256
 
-Compare the result with SHA256SUMS-windows from the same release. Signing is
-planned for the first release distributed for production use, not for this
-evaluation.
+Compare the result with SHA256SUMS-windows from the same release.
+
+That comparison establishes integrity against the published release metadata.
+It does not establish publisher identity — those are two different claims, and
+only a signed Windows distribution answers the second one. Signing is planned
+for the first release distributed for production use, not for this evaluation.
 
 ## Scope
 
