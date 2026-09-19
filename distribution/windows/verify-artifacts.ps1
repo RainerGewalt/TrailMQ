@@ -13,18 +13,43 @@
 #
 # -SkipInstaller runs only the portable-archive checks, for a run that did not
 # build the installer.
+#
+# -RequireSignature turns the Authenticode report into a gate. Without it the
+# signature is reported and nothing fails, because an unsigned build is the
+# honest state of a launcher that is not published yet. The release workflow
+# passes it as soon as the release contract names a windows_installer, so the
+# first release that claims a Windows installer cannot ship one that says
+# "unknown publisher".
 
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$Version,
     [Parameter(Mandatory = $true)][string]$DistDir,
-    [switch]$SkipInstaller
+    [switch]$SkipInstaller,
+    [switch]$RequireSignature
 )
 
 $ErrorActionPreference = 'Stop'
 
 function Assert-Exit([int]$Code, [string]$What) {
     if ($Code -ne 0) { throw "$What exited $Code" }
+}
+
+# What a downloader's machine decides about the file, not what we intended.
+# SmartScreen weighs publisher identity, so an unsigned build starts from zero
+# reputation at every version while a signed one accumulates it.
+function Assert-Signature([string]$Path, [string]$What) {
+    $sig = Get-AuthenticodeSignature -FilePath $Path
+    $subject = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { '<none>' }
+
+    if ($sig.Status -eq 'Valid') {
+        Write-Host "  $What is signed by $subject"
+        return
+    }
+
+    $detail = "$What is not validly signed (status $($sig.Status), signer $subject)"
+    if ($RequireSignature) { throw $detail }
+    Write-Host "  $detail"
 }
 
 $name = "TrailMQ-$Version-windows-x64"
@@ -61,6 +86,8 @@ foreach ($required in @('release.yaml', 'START-HERE.md',
 if (Test-Path (Join-Path $root '.trailmq-installed')) {
     throw "the portable archive is marked as an installation"
 }
+
+Assert-Signature $exe 'the packaged launcher'
 
 $reported = (& $exe version) -join "`n"
 Assert-Exit $LASTEXITCODE 'trailmq version'
@@ -99,6 +126,7 @@ if (-not $SkipInstaller) {
 # --------------------------------------------------------------------------
     $setup = Join-Path $DistDir "TrailMQ-Setup-$Version.exe"
     if (-not (Test-Path $setup)) { throw "no installer at $setup" }
+    Assert-Signature $setup 'the installer'
 
     $target = Join-Path $workspace 'installed'
     Start-Process -FilePath $setup -Wait -NoNewWindow -ArgumentList `
@@ -123,6 +151,8 @@ if (-not $SkipInstaller) {
         throw "the installed launcher reports:`n$installedVersion`nexpected $Version"
     }
     Write-Host "  installed launcher reports $Version"
+
+    Assert-Signature (Join-Path $target 'trailmq.exe') 'the installed launcher'
 }
 
 Remove-Item -Recurse -Force $workspace -ErrorAction SilentlyContinue
