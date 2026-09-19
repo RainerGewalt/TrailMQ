@@ -82,8 +82,15 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup --no-progress --yes
 
+      # Git Bash rewrites arguments that look like POSIX paths, so ISCC's
+      # switches arrive as `D:/AppVersion=…` and it reports the second one as a
+      # second script filename. Excluding every argument from that conversion
+      # is what lets a Windows compiler be driven from a bash step at all.
       - name: Build the installer
         shell: bash
+        env:
+          MSYS_NO_PATHCONV: 1
+          MSYS2_ARG_CONV_EXCL: '*'
         run: |
           set -euo pipefail
           version="$(scripts/release-contract.sh get version)"
