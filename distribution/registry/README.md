@@ -47,6 +47,32 @@ the same release.
 the three that only exist at build time: `version` comes from the release
 contract, `revision` and `created` from the build environment.
 
+## Publishing
+
+Rendering was automated; uploading was not, and that is exactly where these
+pages drifted. On 2026-09-19 Docker Hub still carried wording from an earlier
+release, a refusal reason the product never emits, and no version at all, while
+this folder held the correct text the whole time.
+
+```bash
+DRY_RUN=1 .github/scripts/publish-registry-description.sh all   # render, upload nothing
+.github/scripts/publish-registry-description.sh backend         # needs credentials
+```
+
+The script publishes what the renderer produces and never composes text of its
+own, so this folder stays the only place the wording is written. It sends the
+rendered page as the Docker Hub overview and the component's
+`org.opencontainers.image.description` label as the short description under the
+repository name.
+
+The [Registry description](../../.github/workflows/registry-description.yml)
+workflow runs it on every push to master that touches this folder, the release
+contract or the two scripts, and on demand. It needs `DOCKERHUB_USERNAME` and a
+`DOCKERHUB_TOKEN` with write scope; without them it renders and publishes
+nothing, so a fork never fails on a secret it cannot have.
+
+GHCR package descriptions are still set by hand from the same rendered text.
+
 ## What is not here
 
 Image digests, SBOM references, signature status and attestation results. Those
