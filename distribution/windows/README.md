@@ -1,6 +1,9 @@
 # Windows distribution
 
-What a Windows evaluator downloads instead of installing Git, WSL and a shell:
+What a Windows evaluator would run instead of installing Git, WSL and a shell.
+These are **build artifacts produced and verified in CI**; the public Windows
+channel is not activated, because `release.yaml` names no `distribution.launcher`
+or `windows_installer` yet.
 
 | Artifact | What it is |
 | --- | --- |
@@ -23,8 +26,12 @@ Both are built and verified by
 The artifacts are **not Authenticode-signed, deliberately.** Signing is
 deferred until a Windows channel is distributed for production use; funding a
 signing service for an evaluation launcher that is not published yet would buy
-nothing. `START-HERE.md` in the payload says so plainly and points at
-`SHA256SUMS-windows`, which is the verification that does exist today.
+nothing. `START-HERE.md` in the payload says so plainly, and points at
+`SHA256SUMS-windows` while keeping the two claims apart: a digest shows the
+file is the artifact this release published, a signature would show who
+published it. Only the first is available today, and it is not a substitute
+for the second — if a release and its checksum file were compromised together,
+the comparison still matches.
 
 What the deferral costs: an unsigned installer shows SmartScreen's "unknown
 publisher" on the path meant to be the easiest one, and it starts from zero
