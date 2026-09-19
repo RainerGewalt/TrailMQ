@@ -40,19 +40,12 @@ reason=acl_role_not_in_topic_scope
 
 ![TrailMQ Activity view filtered to denied outcomes, showing an attributed refused publish and the integrity verdict scope panel](docs/media/preview-activity.jpg)
 
-TrailMQ did four things in that same pass:
+One pass decided it, enforced it before the payload could reach a subscriber,
+recorded who did what, and made it reviewable in **Activity** with the actor,
+MQTT client id, topic and a plain-language reason attached.
 
-1. **Decided** the action: the `publisher` role has no rule that brings
-   `restricted/ops/config` into scope.
-2. **Enforced** the decision: the broker refused the publish before the payload
-   could reach a subscriber.
-3. **Recorded** user, role, client, action, topic, outcome and reason.
-4. **Made it reviewable** in **Activity**, with the actor, MQTT client id, topic
-   and plain-language explanation attached.
-
-The same identity publishing to `public/demo/temperature` is allowed and the
-payload is observed arriving at a subscriber. Both outcomes come out of the same
-two gates: role permission plus namespace/topic rule.
+The same identity publishing to `public/demo/temperature` is allowed. Both
+outcomes come out of the same two gates.
 
 > Scope in one line: the built-in integrity verdict covers the hash-linked
 > system/action audit chain; MQTT decision records are recorded and reviewed
@@ -93,45 +86,60 @@ WebSocket examples are in [Connect an MQTT client](docs/connect-a-client.md).
 If setup fails, run `./trailmq doctor` and see
 [Troubleshooting](docs/troubleshooting.md).
 
-## What TrailMQ Does
+## How Access Is Decided
 
-TrailMQ brings access enforcement and decision review into one workflow. The
-decision, reason and record come out of the same pass that allows or refuses
-the action.
+Every PUBLISH and SUBSCRIBE passes **two independent gates**, and both have to
+say yes. Authentication over MQTT/TLS or WebSocket happens once, at connect;
+these two run on every action afterwards.
 
-| Step | What TrailMQ does |
+**Gate 1 — what the role may do.** Permissions are `<action>:<topic-filter>`.
+This is the identity from the refusal above, exactly as the evaluation ships it:
+
+```yaml
+roles:
+  - id: 2
+    name: publisher
+    description: "Can publish messages"
+    permissions: ["publish:*"]      # may publish, anywhere gate 2 allows
+
+users:
+  - username: testuser
+    roles: [publisher]
+```
+
+**Gate 2 — where that permission applies.** `public/#` is open to every known
+role, `restricted/#` is admin-only, and **every other namespace is
+deny-by-default** until a topic rule names the roles allowed to reach it.
+
+That is why the publish was refused. `publish:*` passes gate 1 and still loses
+at gate 2, because nothing brings `restricted/ops/config` into scope for
+`publisher`. A role permission does not open a namespace — and the record says
+which gate said no:
+
+| Reason on the record | Which gate |
 | --- | --- |
-| **Authenticate** | The client proves an identity over MQTT/TLS or MQTT over WebSocket. |
-| **Authorize** | Two independent gates: the role's own permission, and the namespace/topic rule that scopes where it applies. |
-| **Enforce** | The action is carried out or refused at the broker boundary. |
-| **Record** | User, role, client, action, topic, time, outcome and reason are kept for review. |
-| **Review** | Activity shows what happened, why, and whether the validated chain covers that record. |
+| `acl_role_not_in_topic_scope` | Gate 2 — no rule brings this topic into scope |
+| `acl_role_action_not_permitted` | Gate 1 — the role may not perform this operation |
 
-Unknown namespaces fail closed until a topic rule grants roles. A role with
-`publish:*` can still be denied by the second gate if no namespace or topic rule
-brings the requested path into scope.
+![TrailMQ Access view showing evaluation users with their roles and the topic rules that scope MQTT communication](docs/media/preview-access.jpg)
 
-Around that path, an evaluation also covers the hash-linked system/action audit
-chain (validate it, then deliberately tamper with it), standard clients —
-`mosquitto`, Python `paho-mqtt`, Node.js `mqtt.js`, browser WebSocket — without
-a TrailMQ SDK, and a REST API for topics, policies, queues and effective
-settings.
+Users, roles and topic rules are managed in **Access**, in `config.yaml`, or
+over the REST API. [Access management](docs/access-management.md) covers adding,
+rotating and revoking an evaluation user;
+[Govern a namespace](docs/scenarios/03-governed-namespace.md) walks the second
+gate end to end.
 
-Want the side-by-side comparison? Scenario 0,
-[Why not just use a broker?](docs/scenarios/00-why-not-just-a-broker.md), runs
+Standard clients work without a TrailMQ SDK — `mosquitto`, Python `paho-mqtt`,
+Node.js `mqtt.js`, browser WebSocket. Want the side-by-side comparison?
+[Why not just use a broker?](docs/scenarios/00-why-not-just-a-broker.md) runs
 the same commands against default `eclipse-mosquitto` and TrailMQ.
 
 ## Evaluation Preview
 
-The public images ship a compact review UI that carries the core path —
-**decision -> why -> review**. **Overview** shows runtime status and
-review-oriented counters, **Access** the evaluation users and topic rules,
-**Clients** the connected publishers and subscribers, and **Activity** the
-allowed and refused events with their reasons and integrity scope.
-
-| | | |
-| --- | --- | --- |
-| ![TrailMQ Overview showing broker and backend status, connected clients, and refused operations in the last 24 hours](docs/media/preview-overview.jpg) | ![TrailMQ Access view showing evaluation users with their roles and the topic rules that scope MQTT communication](docs/media/preview-access.jpg) | ![TrailMQ Clients view showing connected publishers and subscribers with their user, role and connection time](docs/media/preview-clients.jpg) |
+The public images ship a compact review UI carrying the whole path —
+**decision -> why -> review**. **Access** holds users, roles and topic rules,
+**Activity** the allowed and refused events with their reasons, and
+**Overview** and **Clients** the runtime status and connected sessions.
 
 The Preview manages evaluation users and topic rules. It is not the full
 operations workspace; use the API or `config.yaml` for remaining policy and
@@ -139,17 +147,10 @@ lifecycle operations.
 
 ## Trust And Evidence Scope
 
-"Was it blocked?" is three questions, and most systems answer one. TrailMQ keeps
-them apart:
-
-| | |
-| --- | --- |
-| **Outcome** | Was it permitted? Two independent gates decide it: the role's permission, and the topic rule that brings the topic into scope. |
-| **Evidence** | Was it written down? Refusals, sign-ins and administrative changes are always recorded. |
-| **Integrity** | Is the record covered? A hash-linked chain covers system and action entries and reports its own scope. |
-
-Conflating these three is how a system ends up claiming more than it can show.
-The product states the limits below in its own UI, next to the verdict.
+"Was it blocked?" is really three questions — was it permitted, was it written
+down, is the record covered — and conflating them is how a system ends up
+claiming more than it can show. TrailMQ keeps them apart and states the limits
+in its own UI, next to the verdict.
 
 **What the integrity verdict covers.** The hash-linked chain walks the
 system/action audit store: sign-ins, administrative changes, identity and role
@@ -161,49 +162,40 @@ subscribe refusals, are recorded and reviewed separately. The validated verdict
 does not prove that every MQTT payload is included, tamper-checked, externally
 anchored or digitally signed.
 
-TrailMQ Evaluation Preview is for **local, non-production technical
-evaluation**. It is not intended for production operation, safety-related
-functions, life-safety systems, emergency control, or use where failure could
-directly result in injury, physical damage, or interruption of critical
-operations. See [LICENSE](LICENSE).
-
 **What it is not.** A permitted publish is an authorization result, not proof of
 delivery; confirm delivery with `./trailmq verify`, a real subscriber and the
-Activity decision details. And TrailMQ is a technical building block, not WORM
+Activity decision details. TrailMQ is a technical building block, not WORM
 storage, a notarization service, a CE declaration, a GMP/GxP validation, an
 Annex 11 package or a 21 CFR Part 11 package.
 
-The remaining boundaries — local demo assets and config merge semantics — are
-listed under
-[current evaluation boundaries](docs/README.md#current-evaluation-boundaries).
+TrailMQ Evaluation Preview is for **local, non-production technical
+evaluation** — not for production operation, safety-related functions,
+life-safety systems, emergency control, or any use where failure could cause
+injury, physical damage or interruption of critical operations. See
+[LICENSE](LICENSE) and the remaining
+[evaluation boundaries](docs/README.md#current-evaluation-boundaries).
 
 ## Repository Contents
 
-This is the public, Docker-first evaluation package for TrailMQ: the `./trailmq`
-launcher and diagnostics, the ready-to-run `secure-mqtt-core` Docker recipe,
-release and distribution metadata, configuration examples, guided scenarios, and
-the evaluation documentation.
+This is the public, Docker-first evaluation package: the `./trailmq` launcher
+and diagnostics, the ready-to-run `secure-mqtt-core` recipe, configuration
+examples, guided scenarios and the evaluation documentation. **What you get
+today is `3.1.1`**, tied across recipe, Docker tags, badge, bundle and
+`./trailmq version` by [`release.yaml`](release.yaml).
 
-**What you get today is `3.1.1`.** The recipe, Docker tags, README badge,
-evaluation bundle and `./trailmq version` are tied together by
-[`release.yaml`](release.yaml).
-
-The backend and frontend are delivered as signed Docker images. Their source is
-not included in this repository, and the evaluation license does not permit
-production or commercial use.
+The backend and frontend ship as signed Docker images. Their source is not in
+this repository, and the evaluation license does not permit production or
+commercial use.
 
 ## Release Quality
 
-Published releases are built by an automated pipeline and signed keyless with
-cosign, with SBOM and provenance artifacts attached to the published index.
-Treat signatures, digests, SBOMs and attestations as evidence for the specific
-release tag you evaluate — see
+Releases are built by an automated pipeline and signed keyless with cosign, with
+SBOM and provenance attached to the published index. Treat signatures, digests,
+SBOMs and attestations as evidence for the specific tag you evaluate — see
 [trust-artifacts.md](distribution/registry/trust-artifacts.md) for what they do
 and do not prove, and the
 [v3.1.1 release record](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
-for the current release of this repository.
-
-Security reports follow [SECURITY.md](SECURITY.md).
+for the current release. Security reports follow [SECURITY.md](SECURITY.md).
 
 ## Go Deeper
 
