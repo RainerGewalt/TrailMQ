@@ -168,12 +168,24 @@ Activity decision details. TrailMQ is a technical building block, not WORM
 storage, a notarization service, a CE declaration, a GMP/GxP validation, an
 Annex 11 package or a 21 CFR Part 11 package.
 
-TrailMQ Evaluation Preview is for **local, non-production technical
-evaluation** — not for production operation, safety-related functions,
-life-safety systems, emergency control, or any use where failure could cause
-injury, physical damage or interruption of critical operations. See
-[LICENSE](LICENSE) and the remaining
-[evaluation boundaries](docs/README.md#current-evaluation-boundaries).
+The remaining boundaries — local demo assets and config merge semantics — are
+listed under
+[current evaluation boundaries](docs/README.md#current-evaluation-boundaries).
+
+## Intended Purpose
+
+TrailMQ Evaluation Preview is intended solely for local, non-production
+technical evaluation. It is not intended for production operation,
+safety-related functions, life-safety systems, emergency control, or use where
+failure could directly result in injury, physical damage, or interruption of
+critical operations. Production use requires a separately assessed TrailMQ
+production offering and written agreement.
+
+That paragraph is word for word [section 2 of the license](LICENSE), and the
+safety-related exclusion is the one boundary a commercial agreement about the
+Evaluation Preview does not lift: such a deployment would need a different
+product, separately assessed for that purpose. Everything else on this page
+describes what the Preview does well within that purpose.
 
 ## Repository Contents
 

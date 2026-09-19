@@ -1,0 +1,71 @@
+name: Registry description
+
+# Publishes the canonical registry text to Docker Hub.
+#
+# distribution/registry/*.md has always been the source for those pages, but
+# the upload was manual, so the pages drifted: on 2026-09-19 they still carried
+# wording from an earlier release, an invented refusal reason and no version,
+# while this repository held the correct text. Nothing here writes text of its
+# own — it publishes what .github/scripts/render-registry.sh renders, so the
+# repository stays the only place the wording lives.
+#
+# The run is a no-op unless DOCKERHUB_USERNAME and DOCKERHUB_TOKEN are set, so
+# a fork never fails on a secret it cannot have.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'distribution/registry/**'
+      - 'release.yaml'
+      - '.github/scripts/render-registry.sh'
+      - '.github/scripts/publish-registry-description.sh'
+      - '.github/workflows/registry-description.yml'
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'Which registry page to publish'
+        required: true
+        default: all
+        type: choice
+        options: [all, backend, frontend]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: registry-description
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # Pinned to a commit for the same reason the distribution gate pins it:
+      # a job that can publish must not be able to run unreviewed third-party
+      # code. 11d5960 is actions/checkout v4.4.0.
+      - name: Check out the revision to publish
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      # Always render, with or without credentials. A page that cannot be
+      # rendered is a failure worth seeing even on a fork.
+      - name: Render the registry text
+        run: DRY_RUN=1 .github/scripts/publish-registry-description.sh all
+
+      - name: Publish to Docker Hub
+        if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master' }}
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          COMPONENT: ${{ github.event.inputs.component || 'all' }}
+        run: |
+          if [ -z "${DOCKERHUB_USERNAME}" ] || [ -z "${DOCKERHUB_TOKEN}" ]; then
+            echo "::notice::DOCKERHUB_USERNAME/DOCKERHUB_TOKEN not set — rendered only, nothing published."
+            exit 0
+          fi
+          .github/scripts/publish-registry-description.sh "${COMPONENT}"
