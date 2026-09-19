@@ -66,6 +66,14 @@ cd TrailMQ
 prints the result in plain language, and opens the Web UI. Want the individual
 steps? `./trailmq quickstart` → `./trailmq verify` → `./trailmq open`.
 
+**On Windows**, `TrailMQ-Setup-3.1.1.exe` from the
+[v3.1.1 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
+does the same without Git, WSL or a shell — Docker Desktop is the only
+prerequisite. It is an **unsigned evaluation build**: Windows will report an
+unknown publisher, because nothing vouches for who published the file.
+`SHA256SUMS-windows` from the same release confirms the file is the artifact
+this release published, which is a different claim from who published it.
+
 The proof checks more than container health:
 
 ```text
