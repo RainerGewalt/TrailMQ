@@ -159,6 +159,10 @@ control contract-badge-drift \
   "README release badge does not name the shipped release" \
   sed -i "s|published%20release-${REL}-blue|published%20release-${OTHER}-blue|" README.md
 
+control readme-release-link-drift \
+  "README names a release it does not ship" \
+  sed -i "s|releases/tag/v${REL}|releases/tag/v${OTHER}|" README.md
+
 # Declaring a track is a claim that a published artifact exists, so each thing
 # that claim depends on has to be individually enforceable. The opposite
 # direction is deliberately absent: source for an undeclared track is legal,

@@ -573,6 +573,24 @@ else
       "badge '${badge}', release ${RELEASE_VERSION}"
   fi
 
+  # The badge is only one of the places the README names a release. A release
+  # link or an asset name left on the previous version sends a reader to the
+  # wrong record, or to a file that release never published, while the badge
+  # check stays green.
+  readme_refs=0
+  while IFS= read -r ref; do
+    [ -z "${ref}" ] && continue
+    named="$(printf '%s' "${ref#*:}" | sed -E 's@^(releases/tag/v|TrailMQ-(Setup|Evaluation)-)@@')"
+    if [ "${named}" != "${RELEASE_VERSION}" ]; then
+      fail "README names a release it does not ship" \
+        "line ${ref%%:*}: ${ref#*:}, release ${RELEASE_VERSION}"
+      readme_refs=$((readme_refs + 1))
+    fi
+  done < <(grep -noE 'releases/tag/v[0-9][A-Za-z0-9.-]*|TrailMQ-(Setup|Evaluation)-[0-9][A-Za-z0-9.-]*[0-9]' README.md)
+  if [ "${readme_refs}" -eq 0 ]; then
+    pass "README release links and asset names name ${RELEASE_VERSION}"
+  fi
+
   # The launcher builds its image references from the contract, so this asks
   # the CLI what it would actually tell a user rather than trusting that the
   # wiring is still in place. It needs no Docker daemon and no active recipe.
