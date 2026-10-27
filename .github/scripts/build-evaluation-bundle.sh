@@ -70,6 +70,10 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 
 mkdir -p "${OUT_DIR}"
+# Absolute from here on: zip runs from inside the staging directory, where a
+# relative OUT_DIR — the release workflow passes plain 'dist' — would resolve
+# to a path that does not exist. That is what lost the 3.1.1 bundle.
+OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 rm -f "${OUT_DIR}/${NAME}."* "${OUT_DIR}/SHA256SUMS"
 
 printf 'Building %s from %s\n' "${NAME}" "${REVISION}"
