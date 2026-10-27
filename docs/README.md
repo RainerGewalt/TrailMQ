@@ -61,7 +61,6 @@ broker boundary and keeps the decision evidence available for later review.
 | --- | --- |
 | Configuration examples | [Users](config-examples/users.yaml) · [Roles](config-examples/roles.yaml) |
 | Recipe configuration and endpoints | [Secure MQTT Core](../recipes/secure-mqtt-core/README.md) |
-| Extension direction | [Plugins](plugins.md) |
 | Common questions | [FAQ](faq.md) |
 | Vulnerability reporting | [Security policy](../SECURITY.md) |
 | Contribution scope | [Contributing](../CONTRIBUTING.md) |

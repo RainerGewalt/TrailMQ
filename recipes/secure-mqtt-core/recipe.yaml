@@ -27,11 +27,6 @@ features:
     policy_enforcement: true
     rest_api: true
     web_ui: true
-  plugins:
-    decision_trace: false
-    historical_context_feed: false
-    kpi_lite: false
-    domain_context: false
 
 # Ports exposed to the host by default. Host ports can be changed through
 # TRAILMQ_HTTP_PORT and TRAILMQ_MQTT_TLS_PORT.

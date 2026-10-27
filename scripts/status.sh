@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # TrailMQ — status. A proud little product-feel dashboard in your terminal.
-# Sections: Core → Audit → Plugins → Open.
+# Sections: Core → Audit → Open.
 
 set -euo pipefail
 
@@ -77,34 +77,6 @@ fi
 if [ -d "${recipe_dir}/audit-archive" ]; then
   archived="$(find "${recipe_dir}/audit-archive" -type f 2>/dev/null | wc -l | tr -d ' ')"
   printf "${C_DIM}○${C_RESET} %-18s %s\n" "Archived files" "${archived}"
-fi
-
-# --- Plugins section ---
-# Parsed from plugins/catalog.yaml. Everything is "planned" today; we
-# still show the list so the extension path is visible.
-echo
-echo "${C_BOLD}Plugins${C_RESET}"
-catalog="${TRAILMQ_ROOT}/plugins/catalog.yaml"
-if [ -f "${catalog}" ]; then
-  awk '
-    /^[[:space:]]*-[[:space:]]*id:/          { id=$0 }
-    /^[[:space:]]*name:/                     { name=$0 }
-    /^[[:space:]]*status:/ {
-      sub(/^[[:space:]]*status:[[:space:]]*/, "", $0); status=$0
-      sub(/^[[:space:]]*name:[[:space:]]*/, "", name)
-      printf "%s|%s\n", name, status
-      id=""; name=""; status=""
-    }
-  ' "${catalog}" | while IFS='|' read -r name status; do
-    case "${status}" in
-      available) printf "${C_GREEN}✓${C_RESET} %-28s %s\n" "${name}" "available" ;;
-      beta)      printf "${C_YELLOW}!${C_RESET} %-28s %s\n" "${name}" "beta" ;;
-      planned)   printf "${C_DIM}○${C_RESET} %-28s ${C_DIM}%s${C_RESET}\n" "${name}" "planned" ;;
-      *)         printf "  %-28s %s\n" "${name}" "${status}" ;;
-    esac
-  done
-else
-  log_skip "No plugin catalog found."
 fi
 
 # --- Open section (access points) ---
