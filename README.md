@@ -1,11 +1,9 @@
 <p align="center"><img src="docs/media/trailmq-logo.png" width="440" alt="TrailMQ" /></p>
 
-[![Docker Backend](https://img.shields.io/docker/v/rainergewalt/trailmq-backend?label=Backend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-backend)
-[![Docker Frontend](https://img.shields.io/docker/v/rainergewalt/trailmq-frontend?label=Frontend&logo=docker&logoColor=white)](https://hub.docker.com/r/rainergewalt/trailmq-frontend)
 [![Release](https://img.shields.io/badge/published%20release-3.1.1-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
 [![Distribution gate](https://github.com/RainerGewalt/TrailMQ/actions/workflows/distribution-gate.yml/badge.svg?branch=master)](https://github.com/RainerGewalt/TrailMQ/actions/workflows/distribution-gate.yml)
-[![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
 [![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#release-quality)
+[![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
 
 # Know why MQTT access was allowed or denied
 
@@ -23,19 +21,21 @@ enters the system:
 - **What happened?**
 - **Why was it allowed or denied?**
 
-Standard MQTT clients connect to it directly. TrailMQ is not open source: this
-repository is the free evaluation package, and the runtime ships as signed
-images ([what that means](docs/faq.md#is-trailmq-open-source)).
+Standard MQTT clients connect to it directly, without an SDK. TrailMQ is not
+open source: this repository is the free evaluation package, and the runtime
+ships as signed images ([what that means](docs/faq.md#is-trailmq-open-source)).
+
+**[Try it](#try-it)** · [How access is decided](#how-access-is-decided) ·
+[Trust and evidence scope](#trust-and-evidence-scope) ·
+[Documentation](docs/README.md)
 
 ## One Denied Decision
 
 ```text
-testuser
-PUBLISH
-restricted/ops/config
-
-DENIED
-reason=acl_role_not_in_topic_scope
+user      testuser (role: publisher)
+action    PUBLISH restricted/ops/config
+outcome   DENIED
+reason    acl_role_not_in_topic_scope
 ```
 
 ![TrailMQ Activity view filtered to denied outcomes, showing an attributed refused publish and the integrity verdict scope panel](docs/media/preview-activity.jpg)
@@ -45,7 +45,7 @@ recorded who did what, and made it reviewable in **Activity** with the actor,
 MQTT client id, topic and a plain-language reason attached.
 
 The same identity publishing to `public/demo/temperature` is allowed. Both
-outcomes come out of the same two gates.
+outcomes come out of the [same two gates](#how-access-is-decided).
 
 > Scope in one line: the built-in integrity verdict covers the hash-linked
 > system/action audit chain; MQTT decision records are recorded and reviewed
@@ -63,18 +63,8 @@ cd TrailMQ
 ```
 
 `try` prepares the local evaluation stack, starts it, runs the decision proof,
-prints the result in plain language, and opens the Web UI. Want the individual
-steps? `./trailmq quickstart` → `./trailmq verify` → `./trailmq open`.
-
-**On Windows**, `TrailMQ-Setup-3.1.1.exe` from the
-[v3.1.1 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
-does the same without Git, WSL or a shell — Docker Desktop is the only
-prerequisite. It is an **unsigned evaluation build**: Windows will report an
-unknown publisher, because nothing vouches for who published the file.
-`SHA256SUMS-windows` from the same release confirms the file is the artifact
-this release published, which is a different claim from who published it.
-
-The proof checks more than container health:
+prints the result in plain language, and opens the Web UI. The proof checks
+more than container health:
 
 ```text
 [PASS] Authorized publish reached the subscriber   public/demo/temperature
@@ -83,22 +73,40 @@ The proof checks more than container health:
 [PASS] System/action audit chain intact
 ```
 
-Open **http://localhost/trailmq/**, sign in as `testadmin`, then filter
-**Activity** by **Outcome: Denied**. The refused publish from the proof is there
-with its reason attached.
+Then look for yourself: open **http://localhost/trailmq/**, sign in as
+`testadmin` (`./trailmq credentials` shows the generated password again), and
+filter **Activity** by **Outcome: Denied**. The refused publish from the proof
+is there with its reason attached.
 
-For your own client, run `./trailmq connect`. It prints the live endpoint, CA
-path, generated credentials, allowed and denied test topics, MQTT Explorer
-fields, and ready-to-paste `mosquitto` commands. Python, Node.js and browser
-WebSocket examples are in [Connect an MQTT client](docs/connect-a-client.md).
-If setup fails, run `./trailmq doctor` and see
+Prefer separate steps? `./trailmq quickstart` → `./trailmq verify` →
+`./trailmq open`, each explained in the [Quickstart](docs/quickstart.md). If
+setup fails, run `./trailmq doctor` and see
 [Troubleshooting](docs/troubleshooting.md).
+
+### On Windows
+
+`TrailMQ-Setup-3.1.1.exe` from the
+[v3.1.1 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
+does the same without Git, WSL or a shell — Docker Desktop is the only
+prerequisite.
+
+It is an **unsigned evaluation build**: Windows will report an unknown
+publisher, because nothing vouches for who published the file.
+`SHA256SUMS-windows` from the same release confirms the file is the artifact
+this release published, which is a different claim from who published it.
+
+### Connect your own client
+
+`./trailmq connect` prints the live endpoint, CA path, generated credentials,
+allowed and denied test topics, MQTT Explorer fields, and ready-to-paste
+`mosquitto` commands. Python, Node.js and browser WebSocket examples are in
+[Connect an MQTT client](docs/connect-a-client.md).
 
 ## How Access Is Decided
 
 Every PUBLISH and SUBSCRIBE passes **two independent gates**, and both have to
 say yes. Authentication over MQTT/TLS or WebSocket happens once, at connect;
-these two run on every action afterwards.
+the gates run on every action afterwards.
 
 **Gate 1 — what the role may do.** Permissions are `<action>:<topic-filter>`.
 This is the identity from the refusal above, exactly as the evaluation ships it:
@@ -135,19 +143,21 @@ Users, roles and topic rules are managed in **Access**, in `config.yaml`, or
 over the REST API. [Access management](docs/access-management.md) covers adding,
 rotating and revoking an evaluation user;
 [Govern a namespace](docs/scenarios/03-governed-namespace.md) walks the second
-gate end to end.
-
-Standard clients work without a TrailMQ SDK — `mosquitto`, Python `paho-mqtt`,
-Node.js `mqtt.js`, browser WebSocket. Want the side-by-side comparison?
+gate end to end, and
 [Why not just use a broker?](docs/scenarios/00-why-not-just-a-broker.md) runs
-the same commands against default `eclipse-mosquitto` and TrailMQ.
+the same commands against default `eclipse-mosquitto` and TrailMQ side by side.
 
 ## Evaluation Preview
 
-The public images ship a compact review UI carrying the whole path —
-**decision -> why -> review**. **Access** holds users, roles and topic rules,
-**Activity** the allowed and refused events with their reasons, and
-**Overview** and **Clients** the runtime status and connected sessions.
+The public images ship a compact review UI that carries the whole path —
+**decision → why → review** — on four surfaces:
+
+| Surface | What it holds |
+| --- | --- |
+| **Activity** | Allowed and refused events with their reasons, and the integrity verdict |
+| **Access** | Users, roles and topic rules: create, disable and delete users, add and remove topic rules |
+| **Clients** | Connected publishers and subscribers with user, role and connect time |
+| **Overview** | Runtime status |
 
 The Preview manages evaluation users and topic rules. It is not the full
 operations workspace; use the API or `config.yaml` for remaining policy and
@@ -189,19 +199,25 @@ failure could directly result in injury, physical damage, or interruption of
 critical operations. Production use requires a separately assessed TrailMQ
 production offering and written agreement.
 
-That paragraph is word for word [section 2 of the license](LICENSE), and the
+That paragraph is [section 2 of the license](LICENSE), word for word. Its
 safety-related exclusion is the one boundary a commercial agreement about the
 Evaluation Preview does not lift: such a deployment would need a different
-product, separately assessed for that purpose. Everything else on this page
-describes what the Preview does well within that purpose.
+product, separately assessed for that purpose.
 
 ## Repository Contents
 
-This is the public, Docker-first evaluation package: the `./trailmq` launcher
-and diagnostics, the ready-to-run `secure-mqtt-core` recipe, configuration
-examples, guided scenarios and the evaluation documentation. **What you get
-today is `3.1.1`**, tied across recipe, Docker tags, badge, bundle and
+This is the public, Docker-first evaluation package. **What you get today is
+`3.1.1`**, tied across recipe, Docker tags, badge, bundle and
 `./trailmq version` by [`release.yaml`](release.yaml).
+
+| Path | What it is |
+| --- | --- |
+| [`trailmq`](trailmq) | The launcher: `try`, `verify`, `connect`, `doctor` and the rest |
+| [`recipes/secure-mqtt-core/`](recipes/secure-mqtt-core/README.md) | The evaluation stack: Compose file, broker config, reverse proxy, REST API reference |
+| [`docs/`](docs/README.md) | Quickstart, access model, guided scenarios, troubleshooting |
+| [`cmd/`](cmd/trailmq), [`internal/`](internal) | Source of the native launcher inside the Windows build |
+| [`distribution/`](distribution) | Registry page texts and the Windows installer definition |
+| [`release.yaml`](release.yaml) | The release contract every published version is checked against |
 
 The backend and frontend ship as signed Docker images. Their source is not in
 this repository, and the evaluation license does not permit production or
@@ -236,8 +252,11 @@ Useful commands:
 | Command | Purpose |
 | --- | --- |
 | `./trailmq try` | Guided first run: set up, prove, open |
-| `./trailmq connect` | Endpoint, credentials, CA and test topics |
 | `./trailmq verify` | Run the decision proof |
+| `./trailmq open` | Print the endpoints and open the Web UI |
+| `./trailmq connect` | Endpoint, credentials, CA and test topics |
+| `./trailmq credentials` | Show the generated evaluation passwords |
+| `./trailmq status` | Services, ports and audit status |
 | `./trailmq doctor` | Diagnose Docker, config, certificates, credentials and ports |
 | `./trailmq down` | Stop the stack and keep local data |
 | `./trailmq purge` | Remove the generated recipe runtime |
