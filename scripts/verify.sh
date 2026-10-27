@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # TrailMQ — decision proof against the running local stack.
-# Invoked by: ./trailmq verify   (./trailmq demo is an alias)
+# Invoked by: ./trailmq verify   (./trailmq proof is an alias)
 #
 # Runs a fixed set of PASS/FAIL checks that prove the product claim, not
 # just that containers are up: an authorized publish is delivered, a

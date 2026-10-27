@@ -52,12 +52,6 @@ ${C_BOLD}Available now${C_RESET}
 
   ${C_GREEN}[1]${C_RESET} Secure MQTT Core         ${C_DIM}— policies, audit trail, evidence chain${C_RESET}
 
-${C_BOLD}Preview${C_RESET}  ${C_DIM}(planned for a future release)${C_RESET}
-
-  ${C_DIM}[ ] Explain Decisions        planned${C_RESET}
-  ${C_DIM}[ ] Live vs Historical KPI   planned${C_RESET}
-  ${C_DIM}[ ] Audit Evidence Demo      planned${C_RESET}
-
 EOF
 
   printf "Choose a Starter Kit › "

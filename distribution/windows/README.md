@@ -1,9 +1,9 @@
 # Windows distribution
 
-What a Windows evaluator would run instead of installing Git, WSL and a shell.
-These are **build artifacts produced and verified in CI**; the public Windows
-channel is not activated, because `release.yaml` names no `distribution.launcher`
-or `windows_installer` yet.
+What a Windows evaluator runs instead of installing Git, WSL and a shell.
+These are **build artifacts produced and verified in CI**, and attached to every
+release whose [`release.yaml`](../../release.yaml) names a
+`distribution.windows_installer`.
 
 | Artifact | What it is |
 | --- | --- |
@@ -24,9 +24,10 @@ Both are built and verified by
 ## Publisher identity
 
 The artifacts are **not Authenticode-signed, deliberately.** Signing is
-deferred until a Windows channel is distributed for production use; funding a
-signing service for an evaluation launcher that is not published yet would buy
-nothing. `START-HERE.md` in the payload says so plainly, and points at
+deferred until a Windows channel is distributed for production use, and the
+release contract says so in its own field:
+`distribution.windows_trust_mode: unsigned_evaluation`. `START-HERE.md` in the
+payload says so plainly, and points at
 `SHA256SUMS-windows` while keeping the two claims apart: a digest shows the
 file is the artifact this release published, a signature would show who
 published it. Only the first is available today, and it is not a substitute
@@ -47,14 +48,21 @@ the signing path and useless for distribution.
 
 ### What is already in place
 
-`verify-artifacts.ps1` reports the Authenticode status of the packaged
-launcher, the installer and the installed launcher on every run — so an
-unsigned build is visible in the log rather than silently normal.
-`-RequireSignature` turns that report into a gate, and
-[Launcher release](../../.github/workflows/launcher-release.yml) passes the
-switch by itself as soon as `release.yaml` names a
-`distribution.windows_installer`. The release contract is the switch; nobody
-has to remember a flag.
+`verify-artifacts.ps1` checks the Authenticode status of the packaged
+launcher, the installer and the installed launcher on every run.
+[Launcher release](../../.github/workflows/launcher-release.yml) reads
+`distribution.windows_trust_mode` from `release.yaml` and passes it as
+`-TrustMode`, which turns the report into a gate:
+
+| Trust mode | What the verification demands |
+| --- | --- |
+| `unsigned_evaluation` | Every artifact is unsigned. A signed one fails too: it would be published under a promise of no publisher. |
+| `authenticode` | Every artifact carries a valid signature. |
+
+The distribution gate adds the payload side: under `unsigned_evaluation`,
+`START-HERE.md` has to carry the unknown-publisher warning and keep the
+checksum from standing in for a signature. The release contract is the switch;
+nobody has to remember a flag.
 
 ### When it is funded
 
@@ -66,8 +74,6 @@ no hardware token, and it authenticates from Actions through a federated
 credential rather than a stored secret, which is why `id-token: write` will
 have to join the job's permissions. It requires a paid Azure subscription.
 
-Then set `distribution.launcher` and `distribution.windows_installer` in
-[`release.yaml`](../../release.yaml). The gate turns itself on, and the first
-release naming a Windows installer cannot ship one without a publisher. Until
-then both stay `null`, and the Windows artifacts are built, verified and
-evaluated unsigned.
+Then set `distribution.windows_trust_mode` to `authenticode` in
+[`release.yaml`](../../release.yaml). The verification turns itself around, and
+from that release on a Windows installer cannot ship without a publisher.

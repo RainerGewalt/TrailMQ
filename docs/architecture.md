@@ -119,8 +119,7 @@ capabilities:
 
 ```text
 recipes/
-├── secure-mqtt-core/   available evaluation stack
-└── coming-soon/        documented product direction, not runnable releases
+└── secure-mqtt-core/   available evaluation stack
 ```
 
 Each recipe owns its Compose definition, configuration, certificates, secrets,
