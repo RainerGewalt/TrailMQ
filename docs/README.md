@@ -31,7 +31,8 @@ Run one scenario that matches your risk
 Review architecture and evaluation boundaries
 ```
 
-1. Run `./trailmq quickstart` and `./trailmq verify`.
+1. Run `./trailmq try` — or `./trailmq quickstart` and `./trailmq verify` as
+   separate steps.
 2. Open the Preview, filter **Activity** by **Outcome: Denied**, and read the
    reason the publish was refused.
 3. Publish one value from your own MQTT client.

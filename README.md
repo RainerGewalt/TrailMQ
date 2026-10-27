@@ -64,7 +64,7 @@ cd TrailMQ
 
 `try` prepares the local evaluation stack, starts it, runs the decision proof,
 prints the result in plain language, and opens the Web UI. The proof checks
-more than container health:
+more than container health — four of its seven checks:
 
 ```text
 [PASS] Authorized publish reached the subscriber   public/demo/temperature
@@ -82,6 +82,11 @@ Prefer separate steps? `./trailmq quickstart` → `./trailmq verify` →
 `./trailmq open`, each explained in the [Quickstart](docs/quickstart.md). If
 setup fails, run `./trailmq doctor` and see
 [Troubleshooting](docs/troubleshooting.md).
+
+No Git? `TrailMQ-Evaluation-3.1.1.tar.gz` from the
+[v3.1.1 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
+is the same distribution as a download; extract it and run `./trailmq try`
+inside.
 
 ### On Windows
 

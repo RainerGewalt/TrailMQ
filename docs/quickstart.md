@@ -13,6 +13,9 @@ You need:
 - Bash on Linux, macOS, or WSL;
 - internet access for the first Docker image pull.
 
+On Windows without WSL, use the installer instead — see
+[On Windows](../README.md#on-windows). It drives the same Docker stack.
+
 You do **not** need a local MQTT client for the automated proof. TrailMQ uses a
 temporary Docker client when `mosquitto_pub` and `mosquitto_sub` are absent.
 
