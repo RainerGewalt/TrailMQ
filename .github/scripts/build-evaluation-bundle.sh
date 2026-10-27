@@ -97,7 +97,7 @@ fi
 # Two formats of identical content, because the platforms differ in what they
 # can open without extra tooling, not in what they need to run. tar.gz keeps the
 # executable bits that the launcher depends on; zip does not carry them
-# reliably, which is called out in the release notes rather than papered over.
+# reliably, which START-HERE.md in the bundle calls out rather than papers over.
 # ---------------------------------------------------------------------------
 tar -czf "${OUT_DIR}/${NAME}.tar.gz" -C "${STAGE}" "${NAME}"
 printf '  %s\n' "${NAME}.tar.gz"

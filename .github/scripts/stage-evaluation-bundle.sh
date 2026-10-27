@@ -116,6 +116,18 @@ done < <(find "${ROOT}" -name '*.md' -type f | sort)
 # requirement honestly — this bundle runs TrailMQ in Docker — and then gets out
 # of the way.
 # ---------------------------------------------------------------------------
+# The Windows installer is named only when the staged release declares one, so
+# the orientation never points at a file its own release did not publish.
+WINDOWS_NOTE=""
+installer="$("${ROOT}/scripts/release-contract.sh" get distribution.windows_installer 2>/dev/null || true)"
+if [ -n "${installer}" ] && [ "${installer}" != "null" ]; then
+  WINDOWS_NOTE="
+
+On Windows without WSL, the installer from the same release
+(\`TrailMQ-Setup-${installer}.exe\`) runs this evaluation with Docker Desktop
+alone."
+fi
+
 cat >"${ROOT}/START-HERE.md" <<EOF
 # TrailMQ ${VERSION} — evaluation bundle
 
@@ -127,7 +139,7 @@ decision, and keeps a reviewable record of it.
 - **Docker** 20.10 or newer, with **Docker Compose v2**
   (\`docker compose version\` must work)
 - **Bash** — present on Linux and macOS; on Windows use WSL or Git Bash
-- Internet access for the first image pull (about 1 GB)
+- Internet access for the first image pull (about 1 GB)${WINDOWS_NOTE}
 
 This bundle runs TrailMQ in containers. It does not install anything on your
 system, register a service, or write outside this folder.
@@ -141,6 +153,9 @@ system, register a service, or write outside this folder.
 That checks prerequisites, generates local credentials and demo certificates,
 starts the stack, and then makes TrailMQ decide twice — one MQTT publish that
 is allowed and one that is refused — before opening the Web UI.
+
+Extracted the \`.zip\`? Zip does not reliably keep executable bits, so run
+\`chmod +x trailmq scripts/*.sh\` first — or use the \`.tar.gz\`, which does.
 
 ## Then
 

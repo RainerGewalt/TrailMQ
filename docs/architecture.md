@@ -137,9 +137,11 @@ TrailMQ is not intended to replace:
 - organizational identity governance and approval processes;
 - compliance validation for the complete deployed system.
 
-The Evaluation Preview is also not the full operations workspace. It focuses on
-reviewing status, records, decisions, users, and roles. Operational changes use
-the REST API and configuration in the public evaluation package.
+The Evaluation Preview is also not the full operations workspace. It manages
+evaluation users and topic rules in **Access** and is otherwise for review:
+status, sessions, decisions and the integrity verdict. Remaining policy and
+lifecycle operations use the REST API and configuration in the public
+evaluation package.
 
 ## Continue evaluating
 
