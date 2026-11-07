@@ -116,7 +116,9 @@ documentation. The backend and frontend are delivered as signed Docker images;
 their source is not part of this repository.
 
 Production, commercial, managed-hosting, redistribution and customer-facing use
-require a separate agreement. See [LICENSE](../LICENSE), or write to
+require a separate agreement, and no such agreement is on offer today. How
+developers may use TrailMQ beyond evaluation is an open question for the
+project, to be answered after 3.2. See [LICENSE](../LICENSE), or write to
 **contact@trailmq.com**.
 
 ## Still stuck?

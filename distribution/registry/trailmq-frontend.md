@@ -44,8 +44,9 @@ separate evidence page. Evaluation users and topic rules can be created from
 
 The decision, the reason it was refused and the stated scope of the integrity
 verdict are all in this image; none of it starts after a purchase. What this
-image does not carry is the wider operations workspace — day-to-day operations
-at scale belong to TrailMQ Pro.
+image does not carry is a wider operations workspace: the Preview manages
+evaluation users and topic rules, and the remaining lifecycle operations go
+through the REST API and `config.yaml`.
 
 ## Verification
 
