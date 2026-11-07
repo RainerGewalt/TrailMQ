@@ -5,6 +5,10 @@ body:
   - type: markdown
     attributes:
       value: |
+        **This report creates a public GitHub issue that anyone can read.**
+        Do not include confidential information. Your answer to the citation
+        question below does not make the report private.
+
         Thank you for trying TrailMQ. A short report helps more than anything
         else: a first run that failed is as useful as one that worked.
         Do not include passwords, tokens, private keys or confidential data
@@ -64,7 +68,7 @@ body:
     id: citation
     attributes:
       label: May this report be cited publicly as an evaluation?
-      description: Nothing from this report is cited elsewhere without a yes here.
+      description: Nothing from this report is cited elsewhere without a yes here. The issue itself stays public either way.
       options:
         - "No"
         - "Yes, without my name or organisation"

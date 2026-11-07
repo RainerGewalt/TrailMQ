@@ -58,15 +58,18 @@ patched in place, and the fix ships in the next patch release.
 There is one maintainer, and this is an evaluation preview. So the honest
 answer, rather than a service level nobody is contracted to meet:
 
-- Reports are handled confidentially. Nothing from a report is copied into a
-  public issue. If a report is confirmed, it becomes public as a GitHub
-  security advisory together with the fix, crediting you if you want that.
+- Reports are handled confidentially, and nothing from a report is copied
+  into a public issue. A confirmed vulnerability stays confidential. Once it
+  has been fixed, a coordinated disclosure, for example as a GitHub security
+  advisory, may follow, crediting you if you want that. Neither a fix nor a
+  publication date is promised.
 - Reports are read and answered on a best-effort basis. There is no
   guaranteed response or fix time, and none is implied by this document.
 - A report that includes a reproduction is acted on before one that does not.
 - If a report is a duplicate, out of scope, or not reproducible, you are told
   that rather than left waiting.
-- Fixes ship in the next patch release. There is no backport to older tags.
+- If a fix is made, it ships in a patch release. There is no backport to older
+  tags.
 
 No contractual response commitment is offered, under this evaluation license
 or otherwise.
