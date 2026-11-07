@@ -151,6 +151,10 @@ rotating and revoking an evaluation user;
 gate end to end, and
 [Why not just use a broker?](docs/scenarios/00-why-not-just-a-broker.md) runs
 the same commands against default `eclipse-mosquitto` and TrailMQ side by side.
+For a fair comparison with a *secured* broker,
+[Why was my MQTT access denied?](docs/why-was-my-mqtt-access-denied.md) runs
+one policy with three identities and five actions on TrailMQ and on Mosquitto
+with Dynamic Security, and shows where the two differ.
 
 ## Evaluation Preview
 
@@ -245,6 +249,7 @@ for the current release. Security reports follow [SECURITY.md](SECURITY.md).
 | [Documentation home](docs/README.md) | Choose the shortest path for your task |
 | [Quickstart](docs/quickstart.md) | First successful proof and login |
 | [FAQ](docs/faq.md) | Why a publish was denied, auth vs. authz, delivery and chain scope |
+| [Why was my MQTT access denied?](docs/why-was-my-mqtt-access-denied.md) | Reproducible proof: three identities, five actions, TrailMQ and a secured Mosquitto |
 | [Connect a client](docs/connect-a-client.md) | CLI, Python, Node.js, WebSocket and access rules |
 | [Guided scenarios](docs/scenarios/README.md) | Allow, deny, govern, queue, QoS and tamper exercises |
 | [Access management](docs/access-management.md) | Add, rotate and safely revoke evaluation users |
@@ -266,6 +271,18 @@ Useful commands:
 | `./trailmq down` | Stop the stack and keep local data |
 | `./trailmq purge` | Remove the generated recipe runtime |
 
+## Feedback and support
+
+Tried it? An
+[evaluation report](https://github.com/RainerGewalt/TrailMQ/issues/new?template=evaluation-report.yml)
+helps more than anything else: what you ran, whether it worked, and what got
+in the way. A first run that failed is as useful as one that worked. Bugs can
+also go into a plain issue. Vulnerabilities go to [SECURITY.md](SECURITY.md), not to a
+public issue.
+
+Support is best effort: issues are read and answered, but there is no
+guaranteed response time, no support contract, no SLA and no paid support.
+
 ## License
 
 TrailMQ is distributed under a proprietary evaluation license. It is free for
@@ -273,5 +290,12 @@ personal learning, local demos and non-production technical evaluation.
 Production, commercial, managed-hosting, redistribution and customer-facing use
 require a separate agreement.
 
-See [LICENSE](LICENSE). Commercial contact: **contact@trailmq.com** ·
+There is no production licence offer today: the evaluation release is not a
+separately assessed production version ([section 2 of the license](LICENSE)).
+If you would need TrailMQ beyond evaluation, describe what for in an
+[evaluation report](https://github.com/RainerGewalt/TrailMQ/issues/new?template=evaluation-report.yml).
+Whether production terms will exist, and what they cover, depends on answers
+like that.
+
+See [LICENSE](LICENSE). Contact: **contact@trailmq.com** ·
 [trailmq.com](https://trailmq.com)

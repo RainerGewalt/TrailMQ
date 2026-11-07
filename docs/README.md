@@ -8,8 +8,8 @@ top to bottom.
 | I want to… | Go to |
 | --- | --- |
 | see TrailMQ work with the fewest steps | [Quickstart](quickstart.md) |
-| understand why a publish was denied | [FAQ](faq.md) |
-| understand the product difference | [Why not just use a broker?](scenarios/00-why-not-just-a-broker.md) |
+| understand why a publish was denied | [FAQ](faq.md) · [reproducible proof](why-was-my-mqtt-access-denied.md) |
+| understand the product difference | [Why not just use a broker?](scenarios/00-why-not-just-a-broker.md) · [compared with a secured Mosquitto](why-was-my-mqtt-access-denied.md) |
 | connect an MQTT client | [Connect an MQTT client](connect-a-client.md) |
 | test a realistic workflow | [Guided scenarios](scenarios/README.md) |
 | add, rotate, or revoke an evaluation user | [Access management](access-management.md) |

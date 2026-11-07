@@ -1,0 +1,59 @@
+name: Evaluation report
+description: You tried TrailMQ. Tell us what you ran, whether it worked and what got in the way.
+title: "Evaluation: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for trying TrailMQ. A short report helps more than anything
+        else: a first run that failed is as useful as one that worked.
+        Do not include passwords, tokens, private keys or confidential data
+        from your organisation. Suspected vulnerabilities go to [SECURITY.md](https://github.com/RainerGewalt/TrailMQ/blob/master/SECURITY.md), not here.
+  - type: textarea
+    id: tried
+    attributes:
+      label: What did you try?
+      description: "The documented example (`./trailmq try`, a scenario, the access-decision proof) or your own setup: which clients, which roles and topic rules?"
+    validations:
+      required: true
+  - type: dropdown
+    id: worked
+    attributes:
+      label: Did it work?
+      options:
+        - "Yes, it did what I needed"
+        - "Partly"
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: blocked
+    attributes:
+      label: What got in the way, or what was missing?
+      description: The first step where you got stuck, a message you did not understand, a capability you needed.
+  - type: textarea
+    id: beyond
+    attributes:
+      label: Would you use it again, or beyond this evaluation?
+      description: If yes, for what, and what would that need (a feature, documentation, rights of use, support)? A no with a reason is just as useful.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "From `./trailmq version`."
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: "OS, Docker version, MQTT client and library."
+  - type: dropdown
+    id: citation
+    attributes:
+      label: May this report be cited publicly as an evaluation?
+      description: Nothing from this report is cited elsewhere without a yes here.
+      options:
+        - "No"
+        - "Yes, without my name or organisation"
+        - "Yes, with my name or organisation"
+    validations:
+      required: true
