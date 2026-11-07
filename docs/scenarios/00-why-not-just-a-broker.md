@@ -113,7 +113,7 @@ logging or security configuration.
 **TrailMQ** — the decision itself is the record:
 
 ```bash
-./trailmq logs backend | grep ACLMon | tail -1
+docker logs trailmq-backend 2>&1 | grep ACLMon | tail -1
 ```
 
 ```text
@@ -143,8 +143,12 @@ this MQTT refusal.
 
 ## To be fair to the broker
 
-A standard broker **can** be configured with TLS, password files and ACL
-files. The difference isn't that it's impossible — it's:
+A standard broker **can** be configured with TLS, password files, ACL files
+or a role model. Secured that way, it refuses the same actions:
+[Why was my MQTT access denied?](../why-was-my-mqtt-access-denied.md) runs one
+policy on TrailMQ and on Mosquitto with its Dynamic Security plugin, and both
+brokers reach the same five decisions. The difference isn't that enforcement
+is impossible elsewhere — it's:
 
 - **Evaluation policy.** TrailMQ's evaluation restricts `restricted/#` to
   administrators and denies unknown namespaces until a rule grants access.

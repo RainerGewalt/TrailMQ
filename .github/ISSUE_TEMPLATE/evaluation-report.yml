@@ -1,0 +1,77 @@
+name: Evaluation report
+description: You tried TrailMQ. Tell us what you ran, whether it worked and what got in the way.
+title: "Evaluation: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This report creates a public GitHub issue that anyone can read.**
+        Do not include confidential information. Your answer to the citation
+        question below does not make the report private.
+
+        Thank you for trying TrailMQ. A short report helps more than anything
+        else: a first run that failed is as useful as one that worked.
+        Do not include passwords, tokens, private keys or confidential data
+        from your organisation. Suspected vulnerabilities go to [SECURITY.md](https://github.com/RainerGewalt/TrailMQ/blob/master/SECURITY.md), not here.
+  - type: textarea
+    id: tried
+    attributes:
+      label: What did you try?
+      description: "The documented example (`./trailmq try`, a scenario, the access-decision proof) or your own setup: which clients, which roles and topic rules?"
+    validations:
+      required: true
+  - type: dropdown
+    id: worked
+    attributes:
+      label: Did it work?
+      options:
+        - "Yes, it did what I needed"
+        - "Partly"
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: blocked
+    attributes:
+      label: What got in the way, or what was missing?
+      description: The first step where you got stuck, a message you did not understand, a capability you needed.
+  - type: textarea
+    id: beyond
+    attributes:
+      label: What would it need to be useful to you?
+      description: A fix, documentation, an example, a capability. A clear "not for me" with a reason is just as useful.
+  - type: dropdown
+    id: production-intent
+    attributes:
+      label: Would you consider using TrailMQ in a real project if a suitable production license became available?
+      description: Optional. TrailMQ has no production license offer today. Your answer records interest only; it is not a purchase commitment, and it does not mean that such a license will be offered.
+      options:
+        - "Yes"
+        - "Maybe"
+        - "No"
+  - type: textarea
+    id: intended-use
+    attributes:
+      label: Intended use case
+      description: Optional. What would TrailMQ do in that project?
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "From `./trailmq version`."
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: "OS, Docker version, MQTT client and library."
+  - type: dropdown
+    id: citation
+    attributes:
+      label: May this report be cited publicly as an evaluation?
+      description: Nothing from this report is cited elsewhere without a yes here. The issue itself stays public either way.
+      options:
+        - "No"
+        - "Yes, without my name or organisation"
+        - "Yes, with my name or organisation"
+    validations:
+      required: true
