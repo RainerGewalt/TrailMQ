@@ -292,10 +292,10 @@ require a separate agreement.
 
 There is no production licence offer today: the evaluation release is not a
 separately assessed production version ([section 2 of the license](LICENSE)).
-If you would need TrailMQ beyond evaluation, describe what for in an
+If you would consider using TrailMQ in a real project, you can say so in an
 [evaluation report](https://github.com/RainerGewalt/TrailMQ/issues/new?template=evaluation-report.yml).
-Whether production terms will exist, and what they cover, depends on answers
-like that.
+That records interest. It is not an order, and it does not mean that a
+production licence will be offered.
 
 See [LICENSE](LICENSE). Contact: **contact@trailmq.com** ·
 [trailmq.com](https://trailmq.com)

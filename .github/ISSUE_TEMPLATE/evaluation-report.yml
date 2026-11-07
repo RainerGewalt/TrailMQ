@@ -34,8 +34,22 @@ body:
   - type: textarea
     id: beyond
     attributes:
-      label: Would you use it again, or beyond this evaluation?
-      description: If yes, for what, and what would that need (a feature, documentation, rights of use, support)? A no with a reason is just as useful.
+      label: What would it need to be useful to you?
+      description: A fix, documentation, an example, a capability. A clear "not for me" with a reason is just as useful.
+  - type: dropdown
+    id: production-intent
+    attributes:
+      label: Would you consider using TrailMQ in a real project if a suitable production license became available?
+      description: Optional. TrailMQ has no production license offer today. Your answer records interest only; it is not a purchase commitment, and it does not mean that such a license will be offered.
+      options:
+        - "Yes"
+        - "Maybe"
+        - "No"
+  - type: textarea
+    id: intended-use
+    attributes:
+      label: Intended use case
+      description: Optional. What would TrailMQ do in that project?
   - type: input
     id: version
     attributes:

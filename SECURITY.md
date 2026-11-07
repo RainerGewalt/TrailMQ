@@ -5,13 +5,14 @@ security reports are handled privately first.
 
 ## Reporting a vulnerability
 
-Please do not open a public GitHub issue for suspected vulnerabilities.
+Please do not report a suspected vulnerability in a public issue, pull
+request or discussion.
 
-Report security issues to **contact@trailmq.com**, or through the contact
-channel listed at [trailmq.com](https://trailmq.com).
-
-That is the same address the README and the LICENSE give for commercial
-contact. There is one channel, not several.
+Report it privately through GitHub instead: open the **Security** tab of this
+repository and choose **Report a vulnerability**, or go straight to
+<https://github.com/RainerGewalt/TrailMQ/security/advisories/new>. Only you
+and the maintainer can see the report and the conversation about it. If you
+cannot use GitHub, email **contact@trailmq.com**.
 
 Include as much detail as you can safely share:
 
@@ -52,21 +53,23 @@ Older images stay available so an evaluation in progress does not break. That is
 availability, not support: an unfixed vulnerability in an older tag is not
 patched in place, and the fix ships in the next patch release.
 
-## What to expect after you report
+## What happens after you report
 
 There is one maintainer, and this is an evaluation preview. So the honest
 answer, rather than a service level nobody is contracted to meet:
 
-- Reports are read. There is no guaranteed response time, and none is implied
-  by this document.
+- Reports are handled confidentially. Nothing from a report is copied into a
+  public issue. If a report is confirmed, it becomes public as a GitHub
+  security advisory together with the fix, crediting you if you want that.
+- Reports are read and answered on a best-effort basis. There is no
+  guaranteed response or fix time, and none is implied by this document.
 - A report that includes a reproduction is acted on before one that does not.
 - If a report is a duplicate, out of scope, or not reproducible, you are told
   that rather than left waiting.
-- Fixes ship in the next patch release. There is no separate advisory feed and
-  no backport to older tags.
+- Fixes ship in the next patch release. There is no backport to older tags.
 
-If you need a contractual response commitment, that belongs to a commercial
-agreement and not to this evaluation license. Contact **contact@trailmq.com**.
+No contractual response commitment is offered, under this evaluation license
+or otherwise.
 
 ## Local evaluation reminders
 

@@ -7,9 +7,12 @@ and once, with the same policy, on Eclipse Mosquitto secured with its
 Dynamic Security plugin.
 
 It is a reproducible check, not a benchmark and not a feature comparison.
-Every output below comes from one run on 7 November 2026 with TrailMQ 3.1.1
-and Mosquitto 2.1.2 (`eclipse-mosquitto:2.1.2-alpine`). If your run gives a
-different result, please
+Every output below comes from one run on 7 November 2026 with TrailMQ 3.1.1,
+Mosquitto 2.1.2 (`eclipse-mosquitto:2.1.2-alpine`) and the `mosquitto_pub` /
+`mosquitto_sub` 1.6.9 clients over MQTT 3.1.1. The results hold for those
+versions and for the configurations on this page; they are not a statement
+about other versions, other configurations or other clients. If your run
+gives a different result, please
 [open an evaluation report](https://github.com/RainerGewalt/TrailMQ/issues/new?template=evaluation-report.yml):
 a run that contradicts this page is the most useful report there is.
 
@@ -225,19 +228,23 @@ Client proof-stranger [172.17.0.1:39386] disconnected: not authorised.
 | 4 | ops console publishes `restricted/ops/config` | allowed, observer receives it | allowed, observer receives it |
 | 5 | unknown identity connects | refused at connect | refused at connect |
 
-Both brokers enforce the same policy with the same five outcomes. A
-correctly configured Mosquitto refuses exactly what TrailMQ refuses. The
-difference lies in what the client is told and in what is written down.
+In this run both brokers enforced the same policy with the same five
+outcomes: Mosquitto, configured as above, refused exactly what TrailMQ
+refused. The difference lies in what the client is told and in what is
+written down.
 
 ## Where the two runs differ
 
 **What the client is told.** In MQTT 3.1.1 an acknowledgement cannot carry a
-refusal. Mosquitto acknowledges the refused QoS 1 publish, so the client
-exits 0 and looks successful. TrailMQ drops the connection instead, so the
-client fails, but with a generic protocol error rather than a reason. With
-MQTT 5 (`mosquitto_pub -V mqttv5`) both brokers return the refusal, and the
-client prints `Warning: Publish 1 failed: Not authorized.` At QoS 0 the
-client exits 0 on both brokers, because nothing is acknowledged at all.
+refusal. Mosquitto acknowledged the refused QoS 1 publish, so the client
+exited 0 and looked successful. TrailMQ dropped the connection instead, so
+the client failed, but with a generic protocol error rather than a reason.
+The exit codes are those of the 1.6.9 clients; other clients may report the
+same broker behaviour differently. One additional refused publish per broker
+with MQTT 5 (`mosquitto_pub -V mqttv5`) returned the refusal on both, and the
+client printed `Warning: Publish 1 failed: Not authorized.` That is the only
+MQTT 5 case tested here. At QoS 0 the client exited 0 on both brokers,
+because nothing is acknowledged at all.
 
 **What is written down.** With `log_type all`, Mosquitto logged the refused
 publish with client id and topic, the refused subscription filter, and the
@@ -256,16 +263,18 @@ This run used Mosquitto's built-in logging and nothing else. Other plugins
 or log pipelines can record more, and this page makes no statement about
 them.
 
-**When Mosquitto is the simpler choice.** If you need enforcement and MQTT 5
-reason codes for the client, and nobody has to explain a refusal later, a
-secured Mosquitto does the job with less to run, and it is open source.
+**When Mosquitto is the simpler choice.** If what you need is what this run
+showed, enforcement and an MQTT 5 reason for the client, and nobody has to
+explain a refusal later, a secured Mosquitto does the job with less to run,
+and it is open source.
 TrailMQ is worth evaluating when someone has to answer afterwards who was
 refused, on which topic, and by which check.
 
 ## Limits of this proof
 
-- One local run with one small policy. It is not a load, availability or
-  security test of either broker.
+- One local run with one small policy, on the versions named at the top and
+  with MQTT 3.1.1 clients except for the single MQTT 5 publish. It is not a
+  load, availability or security test of either broker.
 - TrailMQ's MQTT decision records are outside its validated integrity chain:
   the built-in verdict does not cover them
   ([trust and evidence scope](../README.md#trust-and-evidence-scope)).
