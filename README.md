@@ -5,17 +5,18 @@
 [![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#release-quality)
 [![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
 
-# Know why MQTT access was allowed or denied
+# Understand your MQTT permissions
 
-**Policy-controlled MQTT for industrial systems, with attributable and
-reviewable access decisions.**
+**A self-hosted MQTT broker for developers who need to control access and
+understand why a publish or subscribe was allowed or denied.**
 
-When an MQTT action is refused on a plant network, "it did not work" is not an
-answer. Someone still has to know who acted, under which role, on which topic,
-and why the answer was no.
+When an MQTT action is refused, "it did not work" is not an answer. Someone
+still has to know who acted, under which role, on which topic, and which check
+said no. That is true for a plant network with twenty suppliers, and for a
+side project with three clients and two sets of rights. TrailMQ grew out of
+the first; it is built to be useful in both.
 
-TrailMQ is a self-hosted MQTT broker that answers three questions where traffic
-enters the system:
+TrailMQ answers three questions where traffic enters the system:
 
 - **Who may do what?**
 - **What happened?**
@@ -290,12 +291,12 @@ personal learning, local demos and non-production technical evaluation.
 Production, commercial, managed-hosting, redistribution and customer-facing use
 require a separate agreement.
 
-There is no production licence offer today: the evaluation release is not a
-separately assessed production version ([section 2 of the license](LICENSE)).
-If you would consider using TrailMQ in a real project, you can say so in an
+How developers may use TrailMQ beyond evaluation is an open question, and
+answering it is part of the work after 3.2. Nothing in this repository
+extends the licence until it changes. If you would use TrailMQ in a project
+of your own, say what you would build and what stops you today, in an
 [evaluation report](https://github.com/RainerGewalt/TrailMQ/issues/new?template=evaluation-report.yml).
-That records interest. It is not an order, and it does not mean that a
-production licence will be offered.
+Those answers shape that decision; they do not change your rights.
 
 See [LICENSE](LICENSE). Contact: **contact@trailmq.com** ·
 [trailmq.com](https://trailmq.com)

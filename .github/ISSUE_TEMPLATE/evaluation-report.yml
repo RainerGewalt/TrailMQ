@@ -41,19 +41,19 @@ body:
       label: What would it need to be useful to you?
       description: A fix, documentation, an example, a capability. A clear "not for me" with a reason is just as useful.
   - type: dropdown
-    id: production-intent
+    id: own-project
     attributes:
-      label: Would you consider using TrailMQ in a real project if a suitable production license became available?
-      description: Optional. TrailMQ has no production license offer today. Your answer records interest only; it is not a purchase commitment, and it does not mean that such a license will be offered.
+      label: Would you use TrailMQ in one of your own projects?
+      description: Optional. Your answer does not extend what the current evaluation license permits.
       options:
         - "Yes"
         - "Maybe"
         - "No"
   - type: textarea
-    id: intended-use
+    id: build-and-barriers
     attributes:
-      label: Intended use case
-      description: Optional. What would TrailMQ do in that project?
+      label: What would you want to build, and what currently prevents you from doing so?
+      description: Optional. A missing capability, the license, documentation, an integration, anything else.
   - type: input
     id: version
     attributes:
