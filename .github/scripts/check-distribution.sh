@@ -796,7 +796,7 @@ for dir in "${RECIPES[@]}"; do
     if [ -e "${src}" ]; then
       continue
     fi
-    if printf '%s\n' "${PREPARED[@]}" | grep -qx "${top}"; then
+    if printf '%s\n' "${PREPARED[@]}" | grep -x "${top}" >/dev/null; then
       continue
     fi
     fail "${dir}: Compose mounts '${rel}', which does not exist and is not created by scripts/launch.sh"
@@ -822,7 +822,7 @@ done < <(sed -nE 's/^[[:space:]]*(recipe=|[0-9]+\) recipe=)"([a-z0-9-]+)".*/\2/p
 cli_body="$(sed -n '/^case "\$cmd" in/,/^esac/p' trailmq)"
 unknown=0
 while IFS= read -r cmd; do
-  if printf '%s' "${cli_body}" | grep -qE "(^|[ (|])${cmd}[)|]"; then
+  if printf '%s' "${cli_body}" | grep -E "(^|[ (|])${cmd}[)|]" >/dev/null; then
     continue
   fi
   fail "Documentation tells users to run './trailmq ${cmd}', which the CLI does not handle"
@@ -929,7 +929,7 @@ else
     fi
 
     if [ -n "${RELEASE_VERSION}" ] &&
-      printf '%s' "${rendered}" | grep -qF "${RELEASE_VERSION}"; then
+      printf '%s' "${rendered}" | grep -F "${RELEASE_VERSION}" >/dev/null; then
       pass "${component} registry text renders naming ${RELEASE_VERSION}"
     else
       fail "${component} registry text renders without naming the release" \
@@ -940,7 +940,7 @@ else
     # names only Docker Hub is how the GHCR package ends up described
     # differently.
     for registry in "rainergewalt/trailmq-${component}" "ghcr.io/rainergewalt/trailmq-${component}"; do
-      if printf '%s' "${rendered}" | grep -qF "${registry}"; then
+      if printf '%s' "${rendered}" | grep -F "${registry}" >/dev/null; then
         pass "${component} registry text names ${registry}"
       else
         fail "${component} registry text does not name ${registry}" \

@@ -307,7 +307,7 @@ if [ -n "${token}" ]; then
     http://localhost:8443/api/v1/audit/validatechain 2>/dev/null || true)"
 fi
 
-if printf '%s' "${chain_resp}" | grep -q '"valid":true'; then
+if printf '%s' "${chain_resp}" | grep '"valid":true' >/dev/null; then
   entries="$(printf '%s' "${chain_resp}" | grep -o '"checkedEntries":[0-9]*' | cut -d: -f2)"
   record_pass audit_chain "System/action audit chain intact          ${C_DIM}${entries:-?} entries hash-checked${C_RESET}"
   emit_result audit_chain_entries "${entries:-}"

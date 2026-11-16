@@ -115,7 +115,7 @@ control() {
     bad "${name}: gate accepted the regression"
     return
   fi
-  if printf '%s' "${out}" | grep -qF "${expect}"; then
+  if printf '%s' "${out}" | grep -F "${expect}" >/dev/null; then
     ok "${name}: rejected — ${expect}"
   else
     bad "${name}: rejected, but not for the expected reason" \

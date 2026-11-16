@@ -77,11 +77,11 @@ trailmq_ca_path() {
 port_in_use() {
   local port="$1"
   if command -v ss >/dev/null 2>&1; then
-    ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}\$"
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -E "[:.]${port}\$" >/dev/null
   elif command -v lsof >/dev/null 2>&1; then
     lsof -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
   elif command -v netstat >/dev/null 2>&1; then
-    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}\$"
+    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -E "[:.]${port}\$" >/dev/null
   else
     return 1
   fi

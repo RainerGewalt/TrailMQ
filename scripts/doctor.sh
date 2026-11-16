@@ -166,7 +166,7 @@ check_port() {
   local port="$1"
   local label="$2"
   if command -v ss >/dev/null 2>&1; then
-    if ss -tln 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]${port}\$"; then
+    if ss -tln 2>/dev/null | awk '{print $4}' | grep -E "[:.]${port}\$" >/dev/null; then
       log_warn "Port ${port} in use     ${C_DIM}(${label} may conflict or TrailMQ already runs)${C_RESET}"
       return 1
     fi
