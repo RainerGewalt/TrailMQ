@@ -118,8 +118,10 @@ release_contract_get() {
   if ! flat="$(release_contract_flatten)"; then
     return 3
   fi
+  # awk reads all of its input, so printf never writes into a closed pipe
+  # (an early exit made pipefail report a present key as missing).
   printf '%s\n' "${flat}" |
-    awk -F'\t' -v k="${path}" '$1 == k { print $2; found = 1; exit } END { exit !found }'
+    awk -F'\t' -v k="${path}" '$1 == k && !found { print $2; found = 1 } END { exit !found }'
 }
 
 # Only act as a command when executed, not when sourced.

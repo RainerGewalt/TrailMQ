@@ -227,9 +227,12 @@ REQUIRED_CONTRACT_KEYS=(
 CONTRACT_VERSION=""
 CONTRACT_FLAT=""
 
+# awk reads all of its input: an early exit would leave printf writing into a
+# closed pipe, and under pipefail the SIGPIPE (141) reported a present key as
+# missing whenever awk finished before printf did.
 cget() {
   printf '%s\n' "${CONTRACT_FLAT}" |
-    awk -F'\t' -v k="$1" '$1 == k { print $2; found = 1; exit } END { exit !found }'
+    awk -F'\t' -v k="$1" '$1 == k && !found { print $2; found = 1 } END { exit !found }'
 }
 
 if [ ! -f release.yaml ]; then
