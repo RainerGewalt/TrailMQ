@@ -317,6 +317,27 @@ Do not treat a Preview counter alone as proof that a publish was delivered.
 See the repository [evaluation boundaries](../../README.md#trust-and-evidence-scope)
 and [license](../../LICENSE).
 
+## Upgrading an existing 3.1.1 recipe to 3.1.2
+
+3.1.2 is a security patch. Before you start it on data from 3.1.1:
+
+- **Everyone signs in again once.** Sessions issued by 3.1.1 end with the upgrade.
+- **Rules that 3.1.1 switched off stay off until you save them again.** Check rules under `public/` first:
+  while such a rule is off, the built-in `public/#` rule decides for that area.
+- **Devices must be allowed to publish to the topic of their Last Will.** A device whose Will topic its role
+  may not publish to is refused at every connection after the upgrade, with an answer that looks like a wrong
+  password (MQTT 3.1.1 return code 5, MQTT 5 `0x87`).
+- **Accounts need the role for what they change.** Changing topic rules needs `policy_admin`, operating queues
+  `operator` or `queue_admin` (purging a queue or changing its configuration `queue_admin`), and an Edge Sync
+  node's account `replication_admin` with a token issued after that grant.
+- **Repeated failed MQTT connections are bounded.** After 20 refused attempts for one account from one address
+  within 15 minutes, that account is refused from that address until the window ends. New WebSocket connections
+  through this recipe's proxy are limited per client address; beyond the limit the proxy answers `429`.
+- **Rolling back to 3.1.1** needs the 3.1.1 recipe files: 3.1.1 does not know `security.trusted_proxies` and
+  refuses to start with it in `config.yaml`.
+
+The release notes of 3.1.2 list every change.
+
 ## Operate the local recipe
 
 ```bash
