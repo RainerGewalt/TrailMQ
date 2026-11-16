@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/media/trailmq-logo.png" width="440" alt="TrailMQ" /></p>
 
-[![Release](https://img.shields.io/badge/published%20release-3.1.1-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
+[![Release](https://img.shields.io/badge/published%20release-3.1.2-blue)](https://hub.docker.com/r/rainergewalt/trailmq-backend/tags)
 [![Distribution gate](https://github.com/RainerGewalt/TrailMQ/actions/workflows/distribution-gate.yml/badge.svg?branch=master)](https://github.com/RainerGewalt/TrailMQ/actions/workflows/distribution-gate.yml)
 [![Signed images](https://img.shields.io/badge/images-cosign%20signed-0e6e5b)](#release-quality)
 [![License](https://img.shields.io/badge/License-Proprietary%20Evaluation-blue)](LICENSE)
@@ -84,15 +84,15 @@ Prefer separate steps? `./trailmq quickstart` → `./trailmq verify` →
 setup fails, run `./trailmq doctor` and see
 [Troubleshooting](docs/troubleshooting.md).
 
-No Git? `TrailMQ-Evaluation-3.1.1.tar.gz` from the
-[v3.1.1 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
+No Git? `TrailMQ-Evaluation-3.1.2.tar.gz` from the
+[v3.1.2 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.2)
 is the same distribution as a download; extract it and run `./trailmq try`
 inside.
 
 ### On Windows
 
-`TrailMQ-Setup-3.1.1.exe` from the
-[v3.1.1 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
+`TrailMQ-Setup-3.1.2.exe` from the
+[v3.1.2 release](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.2)
 does the same without Git, WSL or a shell — Docker Desktop is the only
 prerequisite.
 
@@ -217,7 +217,7 @@ product, separately assessed for that purpose.
 ## Repository Contents
 
 This is the public, Docker-first evaluation package. **What you get today is
-`3.1.1`**, tied across recipe, Docker tags, badge, bundle and
+`3.1.2`**, tied across recipe, Docker tags, badge, bundle and
 `./trailmq version` by [`release.yaml`](release.yaml).
 
 | Path | What it is |
@@ -240,7 +240,7 @@ SBOM and provenance attached to the published index. Treat signatures, digests,
 SBOMs and attestations as evidence for the specific tag you evaluate — see
 [trust-artifacts.md](distribution/registry/trust-artifacts.md) for what they do
 and do not prove, and the
-[v3.1.1 release record](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.1)
+[v3.1.2 release record](https://github.com/RainerGewalt/TrailMQ/releases/tag/v3.1.2)
 for the current release. Security reports follow [SECURITY.md](SECURITY.md).
 
 ## Go Deeper

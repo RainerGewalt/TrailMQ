@@ -51,13 +51,13 @@
 # stays a statement of composition: see the TRACKS list in
 # .github/scripts/check-distribution.sh.
 
-version: 3.1.1
+version: 3.1.2
 
 # The runtime a first run pulls. Backend and frontend ship as one release and
 # are never mixed across versions.
 runtime:
-  backend: 3.1.1
-  frontend: 3.1.1
+  backend: 3.1.2
+  frontend: 3.1.2
 
 # What a user can download and run.
 #
@@ -77,9 +77,9 @@ runtime:
 # gate too, because the release notes would then describe something the file
 # is not.
 distribution:
-  evaluation_bundle: 3.1.1
-  launcher: 3.1.1
-  windows_installer: 3.1.1
+  evaluation_bundle: 3.1.2
+  launcher: 3.1.2
+  windows_installer: 3.1.2
   windows_trust_mode: unsigned_evaluation
 
 # The scenario pack behind `./trailmq demo` and the website demo. Both are
