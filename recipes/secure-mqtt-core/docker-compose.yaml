@@ -129,7 +129,10 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      # 127.0.0.1, not localhost: busybox wget resolves localhost to ::1 first, and
+      # nginx.conf listens on IPv4 only, so a localhost probe is refused and the
+      # proxy reported unhealthy while it served every request.
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
