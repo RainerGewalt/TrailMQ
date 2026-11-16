@@ -180,6 +180,12 @@ cors:
 # address. The recipe's nginx container has a fixed address on trailmq-net
 # (docker-compose.yaml). Without this entry every client would appear as the
 # proxy and share one sign-in limit. Keep it in step with the compose file.
+#
+# Declare exactly nginx's address, never the subnet: the subnet contains the
+# Docker gateway that published ports arrive from (172.30.200.128 with the
+# compose file's ip_range), and a trusted gateway lets any client choose its
+# own address.
+#
 # 3.1.1 refuses to start with this key: upgrade the images first.
 security:
   trusted_proxies: ["172.30.200.10/32"]
