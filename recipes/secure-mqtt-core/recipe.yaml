@@ -17,7 +17,7 @@ description: |
 images:
   backend: rainergewalt/trailmq-backend:3.1.2
   frontend: rainergewalt/trailmq-frontend:3.1.2
-  nginx: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
+  nginx: nginxinc/nginx-unprivileged:1.30-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03
 
 # Capabilities enabled in this recipe.
 features:

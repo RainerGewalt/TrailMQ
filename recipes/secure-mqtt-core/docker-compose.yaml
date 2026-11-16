@@ -104,7 +104,7 @@ services:
     # port you reach it on is unchanged — only the container side moved.
     # Pinned by digest so the proxy cannot change under a rebuild. The digest is a
     # multi-arch index (amd64, arm64, armv6/v7, 386, ppc64le, riscv64, s390x).
-    image: ${TRAILMQ_NGINX_IMAGE:-nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0}
+    image: ${TRAILMQ_NGINX_IMAGE:-nginxinc/nginx-unprivileged:1.30-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03}
     container_name: trailmq-reverse-proxy
     restart: unless-stopped
     ports:

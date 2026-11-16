@@ -303,7 +303,7 @@ control unpinned-image \
 
 control unpinned-proxy-digest \
   "is not digest-pinned" \
-  sed -i "s|nginxinc/nginx-unprivileged:1.27-alpine@sha256:[0-9a-f]*|nginxinc/nginx-unprivileged:1.27-alpine|g" "${COMPOSE}"
+  sed -i -E "s|(nginxinc/nginx-unprivileged:[^@}]+)@sha256:[0-9a-f]+|\1|g" "${COMPOSE}"
 
 control stale-documented-image \
   "Stale TrailMQ image reference" \
