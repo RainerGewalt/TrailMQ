@@ -171,6 +171,19 @@ cors:
 # that user's block above or deleting its password file. For safe offboarding,
 # first remove the config declaration, then delete the runtime user through the
 # REST API. See the repository guide: docs/access-management.md.
+# ------------------------------------------------------------
+# Reverse proxy (since 3.1.2)
+# ------------------------------------------------------------
+# The backend takes a client's address from X-Forwarded-For only when the
+# request arrives from a declared proxy; otherwise it uses the connection's own
+# address. The IP allow-list, audit records and the sign-in limits all use that
+# address. The recipe's nginx container has a fixed address on trailmq-net
+# (docker-compose.yaml). Without this entry every client would appear as the
+# proxy and share one sign-in limit. Keep it in step with the compose file.
+# 3.1.1 refuses to start with this key: upgrade the images first.
+security:
+  trusted_proxies: ["172.30.200.10/32"]
+
 authsyncmode: "merge"
 log_level: "info"
 log_path: "logs"

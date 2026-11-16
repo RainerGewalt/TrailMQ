@@ -15,6 +15,14 @@
 networks:
   trailmq-net:
     driver: bridge
+    # A fixed subnet, so that the reverse proxy below has a fixed address that
+    # config.yaml can declare as trusted (security.trusted_proxies, since 3.1.2).
+    # If Docker reports "Pool overlaps with other one on this address space",
+    # another network already uses this range: change the subnet here, the
+    # proxy's ipv4_address below and trusted_proxies in config.yaml together.
+    ipam:
+      config:
+        - subnet: 172.30.200.0/24
 
 services:
   # ------------------------------------------------------------
@@ -107,7 +115,10 @@ services:
       - backend
       - frontend
     networks:
-      - trailmq-net
+      trailmq-net:
+        # Declared in config.yaml as the one trusted proxy. Only this address may
+        # tell the backend a client's address through X-Forwarded-For.
+        ipv4_address: 172.30.200.10
     # nginx.conf keeps the pid file and every proxy temp path under /tmp and logs to
     # stdout/stderr, so nothing outside /tmp needs to be writable.
     read_only: true
