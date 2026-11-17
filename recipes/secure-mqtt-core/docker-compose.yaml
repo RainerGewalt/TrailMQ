@@ -22,7 +22,11 @@ networks:
     # proxy's ipv4_address below and trusted_proxies in config.yaml together.
     ipam:
       config:
+        # The proxy is pinned at 172.30.200.10, in the lower half of the subnet.
+        # ip_range keeps Docker's dynamic allocation to the upper half, so no other
+        # container can be given .10 and collide with the pinned proxy address.
         - subnet: 172.30.200.0/24
+          ip_range: 172.30.200.128/25
 
 services:
   # ------------------------------------------------------------
