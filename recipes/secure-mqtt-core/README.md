@@ -63,8 +63,17 @@ it was told to trust (`security.trusted_proxies` in `config.yaml`).
   `172.30.200.128` (`docker network inspect` shows it). A trusted subnet
   includes that gateway, and then any client can choose its own address.
 
-If the subnet collides with another Docker network, change the subnet,
-nginx's `ipv4_address` and `security.trusted_proxies` together.
+If the subnet collides with another Docker network, change the subnet, its
+`ip_range`, nginx's `ipv4_address` and `security.trusted_proxies` together.
+Docker assigns addresses to the other containers only from `ip_range`
+(`172.30.200.128/25`), so none of them can take nginx's address.
+
+nginx limits MQTT-over-WebSocket connection attempts on `/mqtt` per client
+address (30 per minute, burst 20, then 429). Behind Docker Desktop or rootless
+Docker port publishing, every client reaches nginx from the same gateway
+address, so all of them share that one limit. A busy test rig or many browser
+tabs on such a host can reach it together; on Linux with the default rootful
+Docker, clients keep their own addresses.
 
 ## Configuration and state
 
