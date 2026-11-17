@@ -15,8 +15,18 @@
 networks:
   trailmq-net:
     driver: bridge
-    # A fixed subnet, so that the reverse proxy below has a fixed address that
-    # config.yaml can declare as trusted (security.trusted_proxies, since 3.1.2).
+    # A fixed subnet, so the reverse proxy below keeps one address across
+    # restarts and recreation, and config.yaml can declare that one address as
+    # trusted (security.trusted_proxies, since 3.1.2). The backend believes a
+    # client address from X-Forwarded-For only when the request comes from it.
+    #
+    # Never declare this whole subnet as a trusted proxy. Docker gives the
+    # network a gateway (with the ip_range below, 172.30.200.128), and every
+    # connection the host publishes into the network can arrive from it. A
+    # trusted gateway lets any such client name its own address in
+    # X-Forwarded-For and so escape the sign-in limits and appear under a false
+    # address in the audit trail.
+    #
     # If Docker reports "Pool overlaps with other one on this address space",
     # another network already uses this range: change the subnet here, the
     # proxy's ipv4_address below and trusted_proxies in config.yaml together.
@@ -121,7 +131,9 @@ services:
     networks:
       trailmq-net:
         # Declared in config.yaml as the one trusted proxy. Only this address may
-        # tell the backend a client's address through X-Forwarded-For.
+        # tell the backend a client's address through X-Forwarded-For. Keep it
+        # outside ip_range, which also holds Docker's gateway, and in step with
+        # the subnet above.
         ipv4_address: 172.30.200.10
     # nginx.conf keeps the pid file and every proxy temp path under /tmp and logs to
     # stdout/stderr, so nothing outside /tmp needs to be writable.

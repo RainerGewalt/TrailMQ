@@ -45,6 +45,27 @@ are `/tmp` and, for the backend, the bind mounts listed under
 The backend's REST and WebSocket ports are internal to the Compose network;
 nginx exposes the public local routes shown above.
 
+### Client address behind the proxy
+
+Sign-in limits, the IP allow-list and audit records use the client's address.
+Behind nginx the backend sees only nginx, so nginx states the client's address
+in `X-Forwarded-For`, and the backend believes that header only from a proxy
+it was told to trust (`security.trusted_proxies` in `config.yaml`).
+
+- `trailmq-net` has a fixed subnet (`172.30.200.0/24`) and nginx a fixed address
+  (`172.30.200.10`) in `docker-compose.yaml`.
+- nginx overwrites `X-Forwarded-For` and `X-Real-IP` with the address it
+  accepted the connection from, and drops `Forwarded`, `X-Forwarded-Host` and
+  `X-Forwarded-Port`, so whatever a client sends in those headers never reaches
+  the backend.
+- Trust exactly the nginx address, never the subnet. Docker routes published
+  ports through the network's gateway, which with this `ip_range` is
+  `172.30.200.128` (`docker network inspect` shows it). A trusted subnet
+  includes that gateway, and then any client can choose its own address.
+
+If the subnet collides with another Docker network, change the subnet,
+nginx's `ipv4_address` and `security.trusted_proxies` together.
+
 ## Configuration and state
 
 | Path | What it controls |
