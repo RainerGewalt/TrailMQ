@@ -332,7 +332,9 @@ and [license](../../LICENSE).
   node's account `replication_admin` with a token issued after that grant.
 - **Repeated failed MQTT connections are bounded.** After 20 refused attempts for one account from one address
   within 15 minutes, that account is refused from that address until the window ends. New WebSocket connections
-  through this recipe's proxy are limited per client address; beyond the limit the proxy answers `429`.
+  through this recipe's proxy are limited per client address; beyond the limit the proxy answers `429`. Behind
+  Docker Desktop or rootless Docker, published ports often reach the proxy from one internal address, so that
+  `/mqtt` limit is then a single shared bucket for every browser on the host rather than per client.
 - **Rolling back to 3.1.1** needs the 3.1.1 recipe files: 3.1.1 does not know `security.trusted_proxies` and
   refuses to start with it in `config.yaml`.
 
