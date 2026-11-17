@@ -3,16 +3,13 @@
   "title": "Unauthorized machine command",
   "audience": "Production, automation and quality",
   "question": "What happens when someone tries to change a machine setting they are not allowed to change?",
-  "compatibleWith": "3.1.1",
-
+  "compatibleWith": "3.1.2",
   "summary": "An operator panel on a filling line tries to write a new setpoint into a protected machine namespace. TrailMQ identifies the client, applies the access policy, refuses the command, and keeps an attributable record of the refusal.",
-
   "topology": [
     "Operator HMI (line 07)",
     "TrailMQ",
     "Protected machine control namespace"
   ],
-
   "actors": [
     {
       "key": "operator",
@@ -21,7 +18,6 @@
       "description": "The operator panel on filling line 07"
     }
   ],
-
   "steps": [
     {
       "id": "blocked-setpoint",
@@ -42,7 +38,6 @@
       "technicalNote": "The record carries the decision reason as the broker evaluated it, which is what makes a later review possible without reconstructing intent from raw traffic."
     }
   ],
-
   "closing": {
     "headline": "That is the difference",
     "explanation": "A conventional broker can also reject this publish. What TrailMQ adds is that the refusal is attributable and reviewable afterwards: the same event is in Activity, with the identity, the topic and the reason attached.",
