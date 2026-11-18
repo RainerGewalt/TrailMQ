@@ -443,8 +443,29 @@ How to read the report:
   best-effort basis. A device that has not connected within that window, or
   whose connection record is missing, is not in the report. A clean result
   means that nothing was observed, not that nothing will be refused.
-- **Affected principals** lists, for each user or device, the client IDs that
-  would be refused and what to do about them.
+- **Affected principals** lists, for each user, the client IDs that would be
+  refused and what to do about them. The account named there is the one the
+  records show, which is a starting point and not a verdict: check each ID
+  against your own device list before you bind it.
+- **Contested client IDs** lists every ID that one user held while another
+  user was refused it. Each user appears with its role: `holder`, `contender`
+  (with the number of refusals) or `observed`. A holder that no record names
+  appears as "(no principal recorded)". The report recommends **no binding**
+  for a contested ID, because the records cannot tell the device from a user
+  that took its ID first. A contested ID counts as impact, and the `Result:`
+  line names how many there are. Find out which account the device's
+  credentials belong to from your device list and the device's own
+  configuration, not from the report, and bind the ID to that account.
+- **A database written by 3.1.2 can over-report.** Before 3.2, the backend
+  recorded a connection for every CONNECT it read, including the ones it then
+  refused, and without naming the user. The preflight cannot tell an admitted
+  CONNECT from a refused one in those records, so it counts them, under "no
+  principal recorded", with a note that says so and gives the number of
+  authentication refusals for the same client ID. A wrong password from a
+  mistyped or probing client can therefore appear as impact. Before binding
+  such an ID, check that a device really connects with it. From 3.2 on, a
+  refused CONNECT leaves no connection record, so failed sign-ins are not
+  counted.
 - **`mqttjs_` IDs** are listed but not counted. Most are sessions of the 3.1.2
   Web UI, which 3.2 no longer creates: do not bind them. An mqtt.js device that
   sets no client ID gets the same form of ID, so check each one.
@@ -453,9 +474,11 @@ How to read the report:
   database. Start the stack once, stop it with `./trailmq down`, and run the
   preflight again.
 
-### 2. Bind the client IDs it lists
+### 2. Bind the client IDs that belong to your devices
 
-Bindings exist only from 3.2, so you create them after the switch:
+The report is a list of candidates, not a list of bindings to create. Bind an
+ID only once you know which account its device signs in with. Bindings exist
+only from 3.2, so you create them after the switch:
 
 1. **If any field device connects with a fixed client ID, start 3.2 in
    compatibility mode for the transition, whatever the preflight reported.**
@@ -469,9 +492,11 @@ Bindings exist only from 3.2, so you create them after the switch:
    `GET /api/v1/clients/binding-proposals` as the inventory of what connects.
    Switch straight to `refuse` only when no client uses a fixed ID, for example
    an evaluation that only uses the Web UI and this recipe's own commands.
-2. Switch to the 3.2 images and start the stack.
-3. Bind each listed client ID to its account as an administrator, either on
-   the **Clients** page of the Web UI or through the API:
+2. Switch to the 3.2 images and start the stack. The restart ends every
+   session, so wait until your devices have reconnected before you take the
+   inventory.
+3. As an administrator, bind each client ID to the account its device signs in
+   with, either on the **Clients** page of the Web UI or through the API:
 
    ```bash
    curl -sS -X POST http://localhost/api/v1/clients/bindings \
@@ -480,20 +505,39 @@ Bindings exist only from 3.2, so you create them after the switch:
      -d '{"pattern": "line-1-sensor", "match": "exact", "username": "testuser"}' | jq
    ```
 
-   `match` is `exact` or `prefix`. Creating a binding disconnects any other
-   user's session that holds a matching client ID.
-   `GET /api/v1/clients/binding-proposals` lists candidates from observed
-   connections. A proposal never becomes a binding on its own.
+   - **Which IDs.** Those under *Affected principals* that you have matched
+     to a device, and those the inventory shows. Do not bind an ID just
+     because the report lists it next to an account.
+   - **Contested IDs.** Resolve the owner first, as described above. A binding
+     decides the ID for good: it disconnects every other user's session that
+     holds a matching client ID, whether that is a user that took the ID
+     first or, if you chose the wrong account, the device itself.
+   - **"No principal recorded".** Identify the device by its client ID, then
+     bind the ID to that device's account. On data from 3.1.2, first check
+     that a device connects with it at all.
+   - **`match`** is `exact` or `prefix`. The Clients page creates exact
+     bindings, one row at a time. A prefix binding, for a family of devices
+     such as `plc-line3-`, is created through the API only. A broad prefix can
+     disconnect many live devices at once: the response lists each one under
+     `evicted`, so review that list after every call.
+   - `GET /api/v1/clients/binding-proposals` lists candidates from current
+     connections. A proposal never becomes a binding on its own.
 4. A client that cannot be bound must connect with an empty client ID. This
    applies to configuration-file users without an account and to anonymous
    clients. The recipe's own users are merged into the runtime database, so
    they are accounts and can be bound.
-5. Check again on the running 3.2 backend until the preflight exits `0`:
+5. Check again on the running 3.2 backend until the preflight exits `0` and
+   the proposals list holds no field device's ID:
 
    ```bash
    docker compose exec -T backend \
      /app/mqtrail preflight client-ids --config /app/config.yaml
    ```
+
+   Records that 3.1.2 wrote stay in the database for their retention. An ID
+   that only a refused sign-in ever used can therefore keep the exit status at
+   `1` although nothing needs binding. Read the note on each remaining entry
+   before you decide that the report is clean enough to continue.
 
 6. Remove `first_holder` and restart with `./trailmq down` and then
    `./trailmq start`. `refuse` then applies.
