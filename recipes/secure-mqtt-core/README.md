@@ -451,11 +451,18 @@ How to read the report:
 
 Bindings exist only from 3.2, so you create them after the switch:
 
-1. **If the preflight exited `1`**, start 3.2 in compatibility mode for the
-   transition. Set `MQTT_CLIENT_ID_UNDECLARED=first_holder` in the root
-   `.env`, or uncomment `mqtt_client_id_undeclared` in `config.yaml` and write
-   `"first_holder"`. The backend's startup log names the effective mode and
-   where it came from. If the preflight exited `0`, switch without it.
+1. **If any field device connects with a fixed client ID, start 3.2 in
+   compatibility mode for the transition, whatever the preflight reported.**
+   Exit `0` means only that nothing was observed within the 90-day retention.
+   A device that stayed connected throughout, as PLCs often do for months,
+   left no connection record in that window and is not in the report. Set
+   `MQTT_CLIENT_ID_UNDECLARED=first_holder` in the root `.env`, or uncomment
+   `mqtt_client_id_undeclared` in `config.yaml` and write `"first_holder"`.
+   The backend's startup log names the effective mode and where it came from.
+   After the restart, use the **Clients** page and
+   `GET /api/v1/clients/binding-proposals` as the inventory of what connects.
+   Switch straight to `refuse` only when no client uses a fixed ID, for example
+   an evaluation that only uses the Web UI and this recipe's own commands.
 2. Switch to the 3.2 images and start the stack.
 3. Bind each listed client ID to its account as an administrator, either on
    the **Clients** page of the Web UI or through the API:
