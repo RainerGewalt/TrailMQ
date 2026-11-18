@@ -25,7 +25,9 @@ higher priority:
 CA=recipes/secure-mqtt-core/certs/ca_cert.pem
 USER_PW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+# -V mqttv5 without -i: the server assigns the client ID, which 3.2 requires
+# unless the ID is bound to the account.
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
   -t 'factory/line-1/temperature' -q 1 -m '{"value":42.0}'
 

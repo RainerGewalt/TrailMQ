@@ -70,6 +70,20 @@ curl -sS -X POST "http://localhost/api/v1/policies/resolve" \
   -d '{"topic":"public/demo/temperature"}' | jq '.policy | {id, qosRequired, onViolation}'
 ```
 
+**From 3.2, bind the client ID first.** The publisher below keeps the fixed
+client ID `qos-test`, because step 5 finds its violation by that ID. From 3.2,
+TrailMQ refuses a client ID that is not bound to an account
+([Client IDs from 3.2](../connect-a-client.md#client-ids-from-32)), so bind it
+to `testuser` once. Releases before 3.2 have no bindings and skip this step.
+
+```bash
+curl -sS -X POST "http://localhost/api/v1/clients/bindings" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"pattern": "qos-test", "match": "exact", "username": "testuser"}' \
+  | jq '.binding | {pattern, match}'
+```
+
 ## 3. QoS 1 — satisfies the policy, arrives
 
 ```bash
@@ -77,8 +91,8 @@ CA=recipes/secure-mqtt-core/certs/ca_cert.pem
 APW=$(cat recipes/secure-mqtt-core/secrets/testadmin.pwd)
 UPW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 
-# Terminal 1
-mosquitto_sub -h localhost -p 8883 --cafile "$CA" \
+# Terminal 1 (no client ID: -V mqttv5 lets the server assign one)
+mosquitto_sub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testadmin -P "$APW" -t 'public/demo/temperature' -T 'trailmq/#' -v
 
 # Terminal 2

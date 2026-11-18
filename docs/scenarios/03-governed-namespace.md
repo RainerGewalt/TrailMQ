@@ -16,16 +16,20 @@ Requires `curl` and `jq` in addition to the mosquitto clients.
 CA=recipes/secure-mqtt-core/certs/ca_cert.pem
 USER_PW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
   -t 'factory/line-1/temperature' -q 1 -m '{"value":42.0}'
 ```
 
 ```text
-Error: A network protocol error occurred when communicating with the broker.
+Warning: Publish 1 failed: Not authorized.
 ```
 
-Denied — `factory/#` has no grant yet (deny by default).
+Denied — `factory/#` has no grant yet (deny by default). The MQTT commands on
+this page use `-V mqttv5` and no `-i`, so the server assigns the client ID.
+From 3.2, TrailMQ refuses a client ID that is not bound to an account; see
+[Client IDs from 3.2](../connect-a-client.md#client-ids-from-32). The output is
+from a 3.2 build with mosquitto 1.6.9.
 
 ## 2. Log in to the REST API as admin
 
@@ -68,7 +72,7 @@ Topic creation reloads the broker ACL immediately — no restart needed.
 Terminal 1 (dashboard):
 
 ```bash
-mosquitto_sub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_sub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testadmin -P "$ADMIN_PW" \
   -t 'factory/#' -T 'trailmq/#' -v
 ```
@@ -76,7 +80,7 @@ mosquitto_sub -h localhost -p 8883 --cafile "$CA" \
 Terminal 2 (sensor — same command that was denied in step 1):
 
 ```bash
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
   -t 'factory/line-1/temperature' -q 1 -m '{"value":42.0}'
 ```

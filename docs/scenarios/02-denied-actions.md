@@ -15,14 +15,19 @@ USER_PW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 
 ## Denial 1 — wrong credentials
 
+Every command on this page uses `-V mqttv5` and no `-i`, so the server assigns
+the client ID. From 3.2, TrailMQ refuses a client ID that is not bound to an
+account; see [Client IDs from 3.2](../connect-a-client.md#client-ids-from-32).
+The outputs are from a 3.2 build with mosquitto 1.6.9.
+
 ```bash
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P 'definitely-wrong' \
   -t 'public/demo/temperature' -m 'x'
 ```
 
 ```text
-Connection error: Connection Refused: not authorised.
+Connection error: Bad User Name or Password
 ```
 
 Rejected at CONNECT. The failed attempt is recorded (Web UI → Activity,
@@ -33,18 +38,20 @@ Rejected at CONNECT. The failed attempt is recorded (Web UI → Activity,
 `restricted/#` is admin-only by default. Publish there as `testuser`:
 
 ```bash
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
   -t 'restricted/ops/config' -q 1 -m 'x'
 ```
 
 ```text
-Error: A network protocol error occurred when communicating with the broker.
+Warning: Publish 1 failed: Not authorized.
 ```
 
-Authentication succeeded, but the ACL denied the publish — at QoS 1 the
-broker refuses to acknowledge and drops the connection. The broker log shows
-the decision:
+Authentication succeeded, but the ACL denied the publish. Under MQTT 5 the
+broker answers the QoS 1 publish with reason `0x87` (not authorized) and keeps
+the connection. mosquitto still exits 0, so read its warning, not its exit
+status. Over MQTT 3.1.1 the broker has no such answer and drops the connection
+instead. The broker log shows the decision:
 
 ```bash
 ./trailmq logs backend | grep ACLMon
@@ -62,7 +69,7 @@ the decision:
 permission at all:
 
 ```bash
-mosquitto_sub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_sub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
   -t 'public/#' -T 'trailmq/#' -v
 ```

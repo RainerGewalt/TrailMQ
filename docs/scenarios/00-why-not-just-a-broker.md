@@ -45,14 +45,22 @@ delivery; no subscriber observation is made in this step.
 
 ```bash
 CA=recipes/secure-mqtt-core/certs/ca_cert.pem
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)" \
   -t 'restricted/ops/config' -q 1 -m '{"shutdown":true}'
 ```
 
 ```text
-Error: A network protocol error occurred when communicating with the broker.
+Warning: Publish 1 failed: Not authorized.
 ```
+
+The TrailMQ commands on this page use `-V mqttv5` and no `-i`, so the server
+assigns the client ID. From 3.2, TrailMQ refuses a client ID that is not bound
+to an account; see
+[Client IDs from 3.2](../connect-a-client.md#client-ids-from-32). The outputs
+shown are from a 3.2 build with mosquitto 1.6.9. Under MQTT 5 the broker
+refuses the publish in its acknowledgement and keeps the connection; over MQTT
+3.1.1 it closes the connection instead.
 
 And that is with **valid credentials**. `testuser` authenticated
 successfully — it simply isn't allowed in that namespace. Without credentials
@@ -79,13 +87,13 @@ if it were real — an identity that was never verified.
 **TrailMQ:**
 
 ```bash
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u definitely-not-a-real-user -P 'whatever' \
   -t 'restricted/ops/config' -m 'x'
 ```
 
 ```text
-Connection error: Connection Refused: not authorised.
+Connection error: Bad User Name or Password
 ```
 
 ## Round 3 — Afterwards: what happened?

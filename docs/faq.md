@@ -41,7 +41,8 @@ The full reason table is in the
 
 **Authentication** happens once, at CONNECT: the client proves *who it is*, with
 credentials over MQTT/TLS or MQTT over WebSocket. It fails with
-`Connection Refused: not authorised.` and the connection never opens.
+`Connection Refused: not authorised.` over MQTT 3.1.1, or
+`Bad User Name or Password` over MQTT 5, and the connection never opens.
 
 **Authorization** happens on *every* PUBLISH and SUBSCRIBE afterwards: an
 authenticated identity is checked against the two gates above for *this topic,
@@ -65,6 +66,17 @@ a description of the decision.
 | Publish at QoS 1 to a denied topic | `Error: A network protocol error occurred…` | The ACL denied it; at QoS 1 the broker disconnects instead of acknowledging |
 | Publish at QoS 0 to a denied topic | Nothing — it "succeeds" locally | QoS 0 has no acknowledgement; the message is discarded |
 | Subscribe without a `subscribe:` permission | Connection stays up, no messages arrive | The subscription was denied; nothing is delivered |
+
+MQTT 5 does have an answer for a refused publish. With `mosquitto_pub -V mqttv5`,
+which the guides use from 3.2 so that the server assigns the client ID, the
+same refused QoS 1 publish prints `Warning: Publish 1 failed: Not authorized.`.
+The connection stays open, and mosquitto still exits 0. A refused subscription
+looks the same as above, and QoS 0 is still silent.
+
+From 3.2 there is one more refusal at CONNECT: a client ID that is not bound to
+an account. Over MQTT 3.1.1 it returns the same code as a wrong password, so
+only the broker log or **Activity** can tell the two apart
+([Client IDs from 3.2](connect-a-client.md#client-ids-from-32)).
 
 This is exactly the gap TrailMQ closes. The client cannot tell you why, so the
 decision is recorded on the broker side with actor, role, client id, topic,

@@ -250,8 +250,9 @@ fails:
 
 | You did | Symptom on the client | What actually happened |
 | ------- | --------------------- | ---------------------- |
-| Wrong username/password | `Connection Refused: not authorised.` | Authentication rejected at CONNECT |
-| Publish (QoS 1) to a namespace your role may not reach | `Error: A network protocol error occurred…` — the broker drops the connection | ACL denied the publish; at QoS 1 the broker disconnects instead of acknowledging |
+| Wrong username/password | MQTT 3.1.1: `Connection Refused: not authorised.` · MQTT 5: `Bad User Name or Password` | Authentication rejected at CONNECT |
+| Client ID not bound to the account (from 3.2) | MQTT 3.1.1: the same as a wrong password · MQTT 5: `Not authorized` | Client ID refused at CONNECT (`client_id_undeclared` in the broker log) |
+| Publish (QoS 1) to a namespace your role may not reach | MQTT 3.1.1: the broker drops the connection, and mosquitto exits with an error · MQTT 5: `Warning: Publish 1 failed: Not authorized.`, exit status 0 | ACL denied the publish; MQTT 5 says so in the acknowledgement, MQTT 3.1.1 can only disconnect |
 | Publish (QoS 0) to a denied namespace | Nothing — the publish "succeeds" locally | QoS 0 has no acknowledgement; the broker silently discards the message |
 | Subscribe without a `subscribe:` permission | Connection stays up, no messages ever arrive | The subscription was denied; nothing is delivered |
 | Connect with the wrong CA file | TLS error before MQTT even starts | Certificate verification failed |

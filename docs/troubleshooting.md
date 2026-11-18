@@ -144,6 +144,24 @@ Treat this as an access-lifecycle issue, not a stale-cache symptom. Remove the
 config declaration and delete the persisted user through the REST API by
 following [Revoke an evaluation user](access-management.md#revoke-an-evaluation-user).
 
+## A client that worked before 3.2 is refused as if its password were wrong
+
+From 3.2, TrailMQ refuses an MQTT client ID that is not bound to an account. A
+client that sends its own client ID, including the random one some libraries
+invent, is refused at CONNECT. Over MQTT 3.1.1 that refusal returns the same
+code as a wrong password. The broker log names the real reason:
+
+```bash
+./trailmq logs backend | grep client_id_undeclared
+# [AuthMon] DENY CONNECT clientID="mqttjs_51de2389" user="testuser" reason=client_id_undeclared holder=""
+```
+
+Either let the server assign the ID (`mosquitto_pub -V mqttv5` without `-i`,
+mqtt.js with `clientId: ""`) or bind the fixed ID to the account first. See
+[Client IDs from 3.2](connect-a-client.md#client-ids-from-32) and, for an
+upgrade, the recipe's
+[Upgrading to 3.2: client IDs](../recipes/secure-mqtt-core/README.md#upgrading-to-32-client-ids).
+
 ## Publish "succeeds" but nothing arrives
 
 Most likely the topic namespace denied the action. Only `public/#` is open to
@@ -160,7 +178,7 @@ the broker's decision log:
 
 Also note: a subscriber's first received message is usually TrailMQ's policy
 handshake on `trailmq/handshake/<client-id>`, not your data. Filter it with
-`mosquitto_sub … -T 'trailmq/#'`.
+`mosquitto_sub -V mqttv5 … -T 'trailmq/#'`.
 
 ## Preview counters do not match live MQTT traffic
 
