@@ -234,6 +234,22 @@ To avoid it:
   devices are rolled out, so that no device is refused while it is being
   commissioned.
 
+## Connections are refused once 500 clients are connected
+
+The broker admits at most 500 concurrent MQTT sessions, across the TLS and
+WebSocket listeners together. The limit is fixed in the backend and cannot be
+configured. Every CONNECT above it is refused, and the client is told that its
+credentials are bad (MQTT 5 `0x86`, MQTT 3.1.1 return code `5`), although they
+are not checked. The broker log names the real cause:
+
+```bash
+./trailmq logs backend | grep 'session limit reached'
+# [AuthMon] DENY session limit reached (500/500) clientID="…"
+```
+
+These refusals do not count against the per-address budget above. Plan
+deployments with hundreds of devices against this limit.
+
 ## Reset local runtime data
 
 Keep certs and secrets, but remove data, logs, and audit archive:

@@ -358,6 +358,12 @@ Do not treat a Preview counter alone as proof that a publish was delivered.
   this endpoint.
 - Hash linking provides local tamper evidence, not external notarization or
   physically immutable storage.
+- The broker admits at most **500 concurrent MQTT sessions**, across the TLS
+  and WebSocket listeners together. The limit is fixed in the backend and
+  cannot be configured. The 501st CONNECT is refused with reason
+  `session_limit_reached`, and the client is told that its credentials are bad.
+  A plant with hundreds of PLCs can reach it; see
+  [Troubleshooting](../../docs/troubleshooting.md#connections-are-refused-once-500-clients-are-connected).
 - TrailMQ can support traceability and regulated engineering work, but does not
   certify the complete deployed system as CRA-, GMP/GxP-, Annex 11-, or 21 CFR
   Part 11-compliant.
