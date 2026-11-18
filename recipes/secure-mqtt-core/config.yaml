@@ -190,6 +190,39 @@ cors:
 security:
   trusted_proxies: ["172.30.200.10/32"]
 
+# ------------------------------------------------------------
+# Undeclared MQTT client IDs (from 3.2)
+# ------------------------------------------------------------
+# From 3.2, a client ID that no binding covers is refused by default
+# ("refuse"). Admitted are only client IDs bound to an account and IDs the
+# server assigns when a client connects with an empty client ID. A refused
+# client sees an answer that looks like a wrong password (MQTT 3.1.1 return
+# code 5, MQTT 5 0x87), and the refusal is recorded with the reason
+# client_id_undeclared. The 3.2 Web UI connects with a server-assigned ID.
+#
+# Declare bindings as an administrator on the Clients page of the Web UI, or
+# through POST /api/v1/clients/bindings (exact or prefix). Configuration-file
+# users without an account and anonymous clients cannot be bound; under
+# "refuse" they must connect with an empty client ID. The recipe's users are
+# merged into the runtime database (authsyncmode below), so they are accounts
+# and can be bound.
+#
+# Before switching to 3.2 images, run the upgrade preflight described in
+# README.md ("Upgrading to 3.2: client IDs").
+#
+#   "refuse"        the 3.2 default; applies while this key is absent
+#   "first_holder"  compatibility mode only: an undeclared ID is admitted for
+#                   whichever user holds it first, so another user can take a
+#                   device's ID first and lock the device out until an
+#                   administrator binds the ID. Set it only for devices that cannot yet be
+#                   bound or moved to server-assigned IDs.
+#
+# An empty value stops the backend at startup. MQTT_CLIENT_ID_UNDECLARED in the
+# root .env overrides this key. Keep the line commented out while you run 3.1.2
+# images: 3.1.2 does not know the key and refuses to start with it.
+#
+# mqtt_client_id_undeclared: "refuse"
+
 authsyncmode: "merge"
 log_level: "info"
 log_path: "logs"

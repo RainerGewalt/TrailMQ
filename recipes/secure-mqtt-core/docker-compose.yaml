@@ -60,6 +60,10 @@ services:
       - ./secrets:/app/secrets:ro
     environment:
       GO_ENV: production
+      # Passed through only when set in the root .env or the shell; unset, the
+      # container does not see it and config.yaml decides (3.2 default:
+      # refuse). 3.1.2 does not read it. See config.yaml for the values.
+      MQTT_CLIENT_ID_UNDECLARED:
     networks:
       - trailmq-net
     # The backend writes only into the mounted volumes below, so the image's own
