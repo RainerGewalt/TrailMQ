@@ -1,6 +1,7 @@
 package verification
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -38,22 +39,26 @@ func TestScanDenyRecordTakesTheMostRecentMatch(t *testing.T) {
 	}
 }
 
-// The window is what keeps "an earlier run's denial" out of this run's
-// evidence now that the whole tail is read rather than a time range.
-func TestScanDenyRecordIgnoresRecordsOlderThanTheWindow(t *testing.T) {
-	logs := `2026-08-17T18:00:00Z WARN [ACLMon] DENY user="olduser" action=publish topic="restricted/ops/config" reason=stale
-2026-08-17T18:50:21Z WARN [ACLMon] DENY user="testuser" action=publish topic="restricted/ops/config" reason=fresh`
+// The mark, taken from the log just before the denied publish, is what keeps
+// an earlier run's denial out of this run's evidence. A denial seconds before
+// the mark is as stale as one from yesterday, and so is one stamped exactly at
+// it: the mark is the last line that existed before this run's publish.
+func TestScanDenyRecordIgnoresRecordsAtOrBeforeTheMark(t *testing.T) {
+	logs := `2026-08-17T18:50:19.5Z WARN [ACLMon] DENY user="olduser" action=publish topic="restricted/ops/config" reason=earlier-run
+2026-08-17T18:50:20.25Z WARN [ACLMon] DENY user="olduser" action=publish topic="restricted/ops/config" reason=at-the-mark
+2026-08-17T18:50:20.2500001Z WARN [ACLMon] DENY user="testuser" action=publish topic="restricted/ops/config" reason=this-run`
 
-	cutoff := time.Date(2026, 8, 17, 18, 45, 0, 0, time.UTC)
+	mark := time.Date(2026, 8, 17, 18, 50, 20, 250000000, time.UTC)
 
-	got := scanDenyRecord(logs, "restricted/ops/config", cutoff)
-	if !contains(got, "reason=fresh") {
-		t.Errorf("scanDenyRecord = %q, want the record inside the window", got)
+	got := scanDenyRecord(logs, "restricted/ops/config", mark)
+	if !contains(got, "reason=this-run") {
+		t.Errorf("scanDenyRecord = %q, want the record logged after the mark", got)
 	}
 
-	onlyStale := `2026-08-17T18:00:00Z WARN [ACLMon] DENY user="olduser" action=publish topic="restricted/ops/config" reason=stale`
-	if got := scanDenyRecord(onlyStale, "restricted/ops/config", cutoff); got != "" {
-		t.Errorf("scanDenyRecord = %q, want no match for a record older than the window", got)
+	onlyEarlier := `2026-08-17T18:50:19.5Z WARN [ACLMon] DENY user="olduser" action=publish topic="restricted/ops/config" reason=earlier-run
+2026-08-17T18:50:20.25Z WARN [ACLMon] DENY user="olduser" action=publish topic="restricted/ops/config" reason=at-the-mark`
+	if got := scanDenyRecord(onlyEarlier, "restricted/ops/config", mark); got != "" {
+		t.Errorf("scanDenyRecord = %q, want no match for records at or before the mark", got)
 	}
 }
 
@@ -63,9 +68,18 @@ func TestScanDenyRecordIgnoresRecordsOlderThanTheWindow(t *testing.T) {
 func TestScanDenyRecordKeepsUnstampedRecords(t *testing.T) {
 	logs := `[ACLMon] DENY user="testuser" action=publish topic="restricted/ops/config" reason=acl_role_not_in_topic_scope`
 
-	cutoff := time.Now().Add(-recordWindow)
-	if got := scanDenyRecord(logs, "restricted/ops/config", cutoff); got == "" {
+	mark := time.Now()
+	if got := scanDenyRecord(logs, "restricted/ops/config", mark); got == "" {
 		t.Error("scanDenyRecord dropped a denial that Docker did not timestamp")
+	}
+}
+
+// Without a mark nothing found in the log could be told apart from an earlier
+// run's record, so the check fails instead of accepting whatever matches.
+func TestFindDecisionRecordFailsWithoutAMark(t *testing.T) {
+	env := &Environment{BackendContainer: "not-consulted"}
+	if r := env.FindDecisionRecord(context.Background(), "restricted/ops/config", time.Time{}, 0); r.Passed() {
+		t.Error("FindDecisionRecord passed without a log mark")
 	}
 }
 

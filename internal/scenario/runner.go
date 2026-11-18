@@ -40,8 +40,13 @@ func (o Outcome) Succeeded() bool { return o.Result.Passed() }
 func Run(ctx context.Context, sc *Scenario, env *verification.Environment) ([]Outcome, error) {
 	outcomes := make([]Outcome, 0, len(sc.Steps))
 
+	// Marked once before the first step, so a decision-record step accepts only
+	// a record this run of the scenario produced. A zero mark makes such a step
+	// fail rather than accept an earlier run's record.
+	mark, _ := env.MarkBackendLog(ctx)
+
 	for _, step := range sc.Steps {
-		outcome, err := runStep(ctx, sc, env, step)
+		outcome, err := runStep(ctx, sc, env, step, mark)
 		if err != nil {
 			return outcomes, err
 		}
@@ -57,7 +62,7 @@ func Run(ctx context.Context, sc *Scenario, env *verification.Environment) ([]Ou
 	return outcomes, nil
 }
 
-func runStep(ctx context.Context, sc *Scenario, env *verification.Environment, step Step) (Outcome, error) {
+func runStep(ctx context.Context, sc *Scenario, env *verification.Environment, step Step, mark time.Time) (Outcome, error) {
 	outcome := Outcome{Step: step}
 
 	switch step.Kind {
@@ -114,7 +119,7 @@ func runStep(ctx context.Context, sc *Scenario, env *verification.Environment, s
 		}
 
 	case DecisionRecord:
-		outcome.Result = env.FindDecisionRecord(ctx, step.Topic, 10*time.Second)
+		outcome.Result = env.FindDecisionRecord(ctx, step.Topic, mark, 10*time.Second)
 		outcome.Technical = []Field{{"Topic", step.Topic}}
 		if record, ok := outcome.Result.Facts["deny_record"]; ok {
 			outcome.Technical = append(outcome.Technical, Field{"Record", record})

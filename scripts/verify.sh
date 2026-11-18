@@ -244,6 +244,13 @@ fi
 # report decides, not only its exit status. A broker that closes the connection
 # instead makes the client exit non-zero. A refused CONNECT never counts as a
 # blocked publish: the publish was then never decided at all.
+#
+# Before publishing, mark where the backend log stands: the timestamp Docker
+# gave its newest line. Only a denial logged after this mark is this run's
+# evidence (see below). Both sides of the comparison are the daemon's own
+# timestamps, so no clock on this machine and no waiting is involved.
+deny_mark="$(docker logs "${backend_container}" --tail 1 --timestamps 2>&1 |
+  awk '$1 ~ /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/ { mark = $1 } END { print mark }')"
 deny_out="$(mq pub -h "$(mqtt_host)" -p "$(mqtt_port)" --cafile "$(mqtt_ca)" \
   -u testuser -P "${USER_PW}" \
   -t 'restricted/ops/config' -q 1 -m 'should-not-arrive' 2>&1)"
@@ -284,22 +291,33 @@ for tail in 400 100 25; do
   deny_logs=""
 done
 
-# A record older than this belongs to an earlier run and is not this run's
-# evidence. An environment whose date(1) supports neither form leaves the
-# cutoff empty, which keeps every line rather than discarding all of them.
-deny_cutoff="$(date -u -d '5 minutes ago' '+%Y-%m-%dT%H:%M:%S' 2>/dev/null ||
-  date -u -v-5M '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || true)"
-
+# Only a record logged after deny_mark, the log position taken just before this
+# run's denied publish, is this run's evidence. A denial from an earlier run,
+# however recent, sits at or before the mark and is ignored. Docker prints
+# RFC 3339 timestamps with trailing zeros of the fraction removed, so the
+# fraction is padded to nine digits before the two are compared as strings.
 deny_line="$(printf '%s\n' "${deny_logs}" |
-  awk -v cutoff="${deny_cutoff}" '
+  awk -v mark="${deny_mark}" '
+    function norm(t,   f) {
+      f = ""
+      if (substr(t, 20, 1) == ".") { f = substr(t, 21); sub(/Z$/, "", f) }
+      while (length(f) < 9) f = f "0"
+      return substr(t, 1, 19) "." substr(f, 1, 9)
+    }
+    BEGIN { m = norm(mark) }
     # Whether a line carries a timestamp is a property of the log driver, so
-    # an unstamped one is kept rather than treated as too old.
-    $1 ~ /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/ { if (substr($1, 1, 19) >= cutoff) print; next }
+    # an unstamped one is kept rather than discarded.
+    $1 ~ /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/ { if (norm($1) > m) print; next }
     { print }
   ' |
   grep -F '[ACLMon] DENY' | grep -F 'restricted/ops/config' | tail -n 1 || true)"
 
-if [ -n "${deny_line}" ]; then
+if [ -z "${deny_mark}" ]; then
+  # Without a mark, a recorded denial cannot be told apart from an earlier
+  # run's, so nothing found here would be evidence about this run.
+  record_fail deny_recorded "Denial recorded with user, role, action and topic" \
+    "The backend log could not be marked before the denied publish"
+elif [ -n "${deny_line}" ]; then
   record_pass deny_recorded "Denial recorded with user, role, action and topic"
   emit_result deny_record "${deny_line#*] }"
   printf "       ${C_DIM}%s${C_RESET}\n" "${deny_line#*] }"

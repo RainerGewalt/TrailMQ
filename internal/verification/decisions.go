@@ -13,15 +13,10 @@ import (
 // denyMarker is how the backend writes an MQTT access denial to its log.
 const denyMarker = "[ACLMon] DENY"
 
-// recordWindow is how far back a denial is accepted from. An evaluation is run
-// repeatedly against the same stack, so a denial from an earlier run must not
-// be reported as this run's evidence.
-const recordWindow = 5 * time.Minute
-
 // recordTails are the tail sizes readBackendLog asks Docker for, in order.
 //
 // The first is the working size: on an evaluation stack it spans well over an
-// hour of log, far more than recordWindow. The smaller ones exist because
+// hour of log, far more than one run needs. The smaller ones exist because
 // Docker cannot read past a corrupted region in a container's log file, and a
 // machine can carry one from an earlier unclean daemon shutdown — nothing to
 // do with TrailMQ, but enough to make this proof unobtainable. The record
@@ -37,22 +32,27 @@ var recordTails = []int{400, 100, 25}
 // audit-chain claim and this one are reported separately: they come from
 // different stores, and the integrity validation does not cover this one.
 //
+// Only a record logged after mark counts. mark is what MarkBackendLog returned
+// before the denied publish, so a denial from an earlier run against the same
+// stack, however recent, is never reported as this run's evidence. A zero mark
+// means the log could not be marked, and nothing found could then be told
+// apart from an earlier run's record.
+//
 // The record is retried for a short while. The publish returns as soon as the
 // broker refuses it, which can be marginally before the decision is written.
-func (e *Environment) FindDecisionRecord(ctx context.Context, topic string, wait time.Duration) Result {
+func (e *Environment) FindDecisionRecord(ctx context.Context, topic string, mark time.Time, wait time.Duration) Result {
 	const key, title = "deny_recorded", "Denial recorded with user, role, action and topic"
 
 	if e.BackendContainer == "" {
 		return fail(key, title, "the backend container could not be identified")
 	}
-
-	// Fixed before the first attempt rather than per attempt, so retrying does
-	// not slowly widen the window a record is accepted from.
-	cutoff := time.Now().Add(-recordWindow)
+	if mark.IsZero() {
+		return fail(key, title, "the backend log could not be marked before the denied publish")
+	}
 
 	deadline := time.Now().Add(wait)
 	for {
-		line, err := e.findDenyLine(ctx, topic, cutoff)
+		line, err := e.findDenyLine(ctx, topic, mark)
 		if err != nil {
 			return fail(key, title, "could not read the backend log: "+firstLine(err.Error()))
 		}
@@ -71,14 +71,43 @@ func (e *Environment) FindDecisionRecord(ctx context.Context, topic string, wait
 	}
 }
 
-// findDenyLine returns the most recent denial for a topic, without the log's
-// own prefix.
-func (e *Environment) findDenyLine(ctx context.Context, topic string, cutoff time.Time) (string, error) {
+// MarkBackendLog returns the timestamp Docker gave the newest line of the
+// backend's log. Taken before a denied publish, it separates that publish's
+// record from every earlier one. Both this mark and the records it is compared
+// with are stamped by the Docker daemon, so the comparison involves no local
+// clock and no waiting. The zero time is returned with the error when the log
+// holds no stamped line or cannot be read.
+func (e *Environment) MarkBackendLog(ctx context.Context) (time.Time, error) {
+	if e.BackendContainer == "" {
+		return time.Time{}, errors.New("the backend container could not be identified")
+	}
+	cmd := exec.CommandContext(ctx, "docker", "logs", e.BackendContainer, "--tail", "1", "--timestamps")
+	var out, errBuf bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil {
+		return time.Time{}, errors.New(describeLogFailure(err, errBuf.String()))
+	}
+	var mark time.Time
+	for _, line := range strings.Split(out.String()+"\n"+errBuf.String(), "\n") {
+		if at, _, stamped := splitTimestamp(strings.TrimSpace(line)); stamped && at.After(mark) {
+			mark = at
+		}
+	}
+	if mark.IsZero() {
+		return time.Time{}, errors.New("the backend log holds no timestamped line")
+	}
+	return mark, nil
+}
+
+// findDenyLine returns the most recent denial for a topic logged after mark,
+// without the log's own prefix.
+func (e *Environment) findDenyLine(ctx context.Context, topic string, mark time.Time) (string, error) {
 	logs, err := e.readBackendLog(ctx)
 	if err != nil {
 		return "", err
 	}
-	return scanDenyRecord(logs, topic, cutoff), nil
+	return scanDenyRecord(logs, topic, mark), nil
 }
 
 // readBackendLog returns the end of the backend's container log, with the
@@ -147,7 +176,7 @@ func splitTimestamp(line string) (time.Time, string, bool) {
 }
 
 // scanDenyRecord extracts the most recent denial for a topic from backend log
-// output, ignoring records written before cutoff. Separated from the Docker
+// output, ignoring records stamped at or before mark. Separated from the Docker
 // call so the matching can be tested against real log shapes without a running
 // stack.
 //
@@ -155,11 +184,11 @@ func splitTimestamp(line string) (time.Time, string, bool) {
 // a Docker version or log driver which omits the prefix silently produces "no
 // denial was recorded" — reporting the product as broken because of how its
 // logs were relayed.
-func scanDenyRecord(logs, topic string, cutoff time.Time) string {
+func scanDenyRecord(logs, topic string, mark time.Time) string {
 	var found string
 	for _, line := range strings.Split(logs, "\n") {
 		at, entry, stamped := splitTimestamp(line)
-		if stamped && at.Before(cutoff) {
+		if stamped && !at.After(mark) {
 			continue
 		}
 		if strings.Contains(entry, denyMarker) && strings.Contains(entry, topic) {

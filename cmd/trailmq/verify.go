@@ -97,13 +97,17 @@ func cmdVerify(out, errOut *output.Printer, args []string) int {
 
 	// The same identity, a namespace its role does not reach.
 	const deniedTopic = "restricted/ops/config"
+	// Marked before the publish, so only this run's denial counts as its
+	// record. A zero mark makes the record check fail rather than accept an
+	// earlier run's denial.
+	mark, _ := env.MarkBackendLog(ctx)
 	report.record(env.ExpectPublishDenied(ctx, verification.DenialSpec{
 		Publisher: publisher,
 		Topic:     deniedTopic,
 		Payload:   []byte("should-not-arrive"),
 	}))
 
-	report.record(env.FindDecisionRecord(ctx, deniedTopic, 10*time.Second))
+	report.record(env.FindDecisionRecord(ctx, deniedTopic, mark, 10*time.Second))
 
 	apiResult, token := env.APIAuthentication(ctx, admin)
 	report.record(apiResult)
