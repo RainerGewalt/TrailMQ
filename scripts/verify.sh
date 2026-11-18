@@ -75,6 +75,12 @@ check_docker || exit 1
 recipe_dir="${TRAILMQ_ROOT}/recipes/${ACTIVE_RECIPE}"
 ca_file="${recipe_dir}/certs/ca_cert.pem"
 
+# The recipe names its backend container trailmq-backend. A stack started under
+# another Compose project without that name (a test rig, a second checkout) is
+# checked by setting TRAILMQ_BACKEND_CONTAINER, so the proof never reaches into
+# a different stack by accident.
+backend_container="${TRAILMQ_BACKEND_CONTAINER:-trailmq-backend}"
+
 CHECKS_TOTAL=0
 CHECKS_PASSED=0
 
@@ -117,8 +123,8 @@ EOF
 # ------------------------------------------------------------------
 # Preconditions
 # ------------------------------------------------------------------
-if ! docker container inspect trailmq-backend >/dev/null 2>&1 ||
-  [ "$(docker container inspect -f '{{.State.Running}}' trailmq-backend 2>/dev/null)" != "true" ]; then
+if ! docker container inspect "${backend_container}" >/dev/null 2>&1 ||
+  [ "$(docker container inspect -f '{{.State.Running}}' "${backend_container}" 2>/dev/null)" != "true" ]; then
   record_fail ready "Runtime ready" "Backend container not running — start it with './trailmq start'"
   finish
 fi
@@ -136,7 +142,7 @@ USER_PW="$(cat "${user_pw_file}")"
 
 ready=false
 for _ in $(seq 1 30); do
-  if docker exec trailmq-backend wget -qO- http://localhost:8443/ready >/dev/null 2>&1; then
+  if docker exec "${backend_container}" wget -qO- http://localhost:8443/ready >/dev/null 2>&1; then
     ready=true
     break
   fi
@@ -155,7 +161,7 @@ fi
 use_docker_client=false
 if ! command -v mosquitto_pub >/dev/null 2>&1 || ! command -v mosquitto_sub >/dev/null 2>&1; then
   use_docker_client=true
-  stack_net="$(docker container inspect trailmq-backend \
+  stack_net="$(docker container inspect "${backend_container}" \
     -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null)"
   if [ -z "${stack_net}" ]; then
     record_fail client "MQTT client available" "Could not determine the stack's Docker network"
@@ -166,7 +172,19 @@ fi
 
 mqtt_host() { $use_docker_client && printf 'backend' || printf 'localhost'; }
 mqtt_ca() { $use_docker_client && printf '/verify-certs/ca_cert.pem' || printf '%s' "${ca_file}"; }
+# Inside the stack's network the backend listens on 8883; from the host, on the
+# published port.
+mqtt_port() { $use_docker_client && printf '8883' || printf '%s' "${TRAILMQ_MQTT_TLS_PORT}"; }
 
+# Every connection lets the server assign its client ID. From 3.2 the backend
+# refuses a client ID that is not bound to an account
+# (mqtt_client_id_undeclared: refuse), and admits only bound IDs and IDs it
+# assigns itself for a CONNECT with an empty client ID and a clean start. Both
+# mosquitto lines in use send an empty ID only when no -i is given, and
+# 'mosquitto_pub -i ""' is rejected as an invalid ID. Under MQTT 3.1.1,
+# mosquitto 1.6 invents its own random ID instead, which refuse turns away.
+# -V mqttv5 without -i is therefore the one form that reaches the backend as
+# an empty ID from mosquitto 1.6 and 2.x alike.
 mq() {
   # mq <pub|sub> <args…>
   local tool="mosquitto_$1"
@@ -174,17 +192,17 @@ mq() {
   if $use_docker_client; then
     docker run --rm --network "${stack_net}" \
       -v "${recipe_dir}/certs:/verify-certs:ro" \
-      eclipse-mosquitto:2 "${tool}" "$@"
+      eclipse-mosquitto:2 "${tool}" -V mqttv5 "$@"
   else
-    "${tool}" "$@"
+    "${tool}" -V mqttv5 "$@"
   fi
 }
 
 # ------------------------------------------------------------------
 # TLS listener
 # ------------------------------------------------------------------
-if mq sub -h "$(mqtt_host)" -p 8883 --cafile "$(mqtt_ca)" \
-  -u testadmin -P "${ADMIN_PW}" -i trailmq-verify-probe \
+if mq sub -h "$(mqtt_host)" -p "$(mqtt_port)" --cafile "$(mqtt_ca)" \
+  -u testadmin -P "${ADMIN_PW}" \
   -t 'trailmq/#' -C 1 -W 8 >/dev/null 2>&1; then
   record_pass tls_listener "MQTT TLS listener accepts authenticated clients"
 else
@@ -198,17 +216,15 @@ fi
 sub_out="$(mktemp)"
 trap 'rm -f "${sub_out}"' EXIT
 
-mq sub -h "$(mqtt_host)" -p 8883 --cafile "$(mqtt_ca)" \
+mq sub -h "$(mqtt_host)" -p "$(mqtt_port)" --cafile "$(mqtt_ca)" \
   -u testadmin -P "${ADMIN_PW}" \
-  -i trailmq-verify-dashboard \
   -t 'public/#' -T 'trailmq/#' -C 1 -W 15 -v >"${sub_out}" 2>/dev/null &
 sub_pid=$!
 sleep 2
 
 payload="{\"value\":21.4,\"unit\":\"degC\",\"verify\":\"$(date +%H:%M:%S)\"}"
-mq pub -h "$(mqtt_host)" -p 8883 --cafile "$(mqtt_ca)" \
+mq pub -h "$(mqtt_host)" -p "$(mqtt_port)" --cafile "$(mqtt_ca)" \
   -u testuser -P "${USER_PW}" \
-  -i trailmq-verify-sensor \
   -t 'public/demo/temperature' -q 1 -m "${payload}" 2>/dev/null || true
 
 wait "${sub_pid}" 2>/dev/null || true
@@ -222,14 +238,24 @@ fi
 # ------------------------------------------------------------------
 # Unauthorized publish is blocked
 # ------------------------------------------------------------------
-if mq pub -h "$(mqtt_host)" -p 8883 --cafile "$(mqtt_ca)" \
+# Under MQTT 5 the broker refuses the publish in its PUBACK (reason 0x87, not
+# authorized) and keeps the connection. mosquitto_pub reports that as
+# "Publish N failed: Not authorized." and still exits 0, so the client's
+# report decides, not only its exit status. A broker that closes the connection
+# instead makes the client exit non-zero. A refused CONNECT never counts as a
+# blocked publish: the publish was then never decided at all.
+deny_out="$(mq pub -h "$(mqtt_host)" -p "$(mqtt_port)" --cafile "$(mqtt_ca)" \
   -u testuser -P "${USER_PW}" \
-  -i trailmq-verify-sensor \
-  -t 'restricted/ops/config' -q 1 -m 'should-not-arrive' >/dev/null 2>&1; then
+  -t 'restricted/ops/config' -q 1 -m 'should-not-arrive' 2>&1)"
+deny_rc=$?
+if printf '%s\n' "${deny_out}" | grep -qiE 'Connection (error|refused)'; then
+  record_fail deny "Unauthorized publish was blocked" \
+    "The client could not connect, so no publish was decided: $(printf '%s\n' "${deny_out}" | tail -n 1)"
+elif [ "${deny_rc}" -ne 0 ] || printf '%s\n' "${deny_out}" | grep -qiE 'Publish [0-9]+ failed: Not authori[sz]ed'; then
+  record_pass deny "Unauthorized publish was blocked            ${C_DIM}restricted/ops/config${C_RESET}"
+else
   record_fail deny "Unauthorized publish was blocked" \
     "restricted/ops/config accepted a publish from role 'publisher'"
-else
-  record_pass deny "Unauthorized publish was blocked            ${C_DIM}restricted/ops/config${C_RESET}"
 fi
 
 # ------------------------------------------------------------------
@@ -248,7 +274,7 @@ fi
 deny_logs=""
 deny_error=""
 for tail in 400 100 25; do
-  if deny_logs="$(docker logs trailmq-backend --tail "${tail}" --timestamps 2>&1)"; then
+  if deny_logs="$(docker logs "${backend_container}" --tail "${tail}" --timestamps 2>&1)"; then
     deny_error=""
     break
   fi
@@ -288,7 +314,7 @@ fi
 # ------------------------------------------------------------------
 # Audit chain integrity
 # ------------------------------------------------------------------
-login_resp="$(docker exec trailmq-backend wget -qO- \
+login_resp="$(docker exec "${backend_container}" wget -qO- \
   --header='Content-Type: application/json' \
   --post-data="{\"username\":\"testadmin\",\"password\":\"${ADMIN_PW}\"}" \
   http://localhost:8443/api/v1/auth 2>/dev/null || true)"
@@ -302,7 +328,7 @@ fi
 
 chain_resp=""
 if [ -n "${token}" ]; then
-  chain_resp="$(docker exec trailmq-backend wget -qO- \
+  chain_resp="$(docker exec "${backend_container}" wget -qO- \
     --header="Authorization: Bearer ${token}" \
     http://localhost:8443/api/v1/audit/validatechain 2>/dev/null || true)"
 fi
@@ -319,7 +345,7 @@ fi
 # ------------------------------------------------------------------
 # Summary
 # ------------------------------------------------------------------
-version_resp="$(docker exec trailmq-backend wget -qO- \
+version_resp="$(docker exec "${backend_container}" wget -qO- \
   http://localhost:8443/api/v1/version 2>/dev/null || true)"
 backend_version="$(printf '%s' "${version_resp}" | grep -o '"version":"[^"]*"' | head -n 1 | cut -d'"' -f4)"
 

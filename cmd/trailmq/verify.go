@@ -55,12 +55,16 @@ func cmdVerify(out, errOut *output.Printer, args []string) int {
 		return exitEnvironment
 	}
 
-	admin, err := env.Identity("testadmin", "trailmq-verify-dashboard")
+	// Empty client IDs: the broker assigns one to each connection. From 3.2 the
+	// backend refuses a client ID that is not bound to an account and admits an
+	// empty one on a clean session, which is what this client always sends, so the
+	// proof needs no binding.
+	admin, err := env.Identity("testadmin", "")
 	if err != nil {
 		errOut.Fail("%s", err.Error())
 		return exitEnvironment
 	}
-	publisher, err := env.Identity("testuser", "trailmq-verify-sensor")
+	publisher, err := env.Identity("testuser", "")
 	if err != nil {
 		errOut.Fail("%s", err.Error())
 		return exitEnvironment

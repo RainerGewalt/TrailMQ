@@ -33,9 +33,11 @@ import (
 
 // Identity is an MQTT or REST identity taking part in a check.
 //
-// ClientID matters: it is what makes an action attributable in the record the
-// broker keeps, so a probe that omitted it would weaken the very claim it is
-// meant to prove.
+// ClientID is the MQTT client ID the identity connects with. Empty means the
+// broker assigns one on the clean session this client always opens; the
+// decision record then carries that assigned ID together with the user, so the
+// action stays attributable. From 3.2 a fixed client ID must be bound to the
+// account, or the backend refuses the connection.
 type Identity struct {
 	Username string
 	Password string
