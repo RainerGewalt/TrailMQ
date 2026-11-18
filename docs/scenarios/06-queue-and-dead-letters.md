@@ -4,9 +4,12 @@
 over MQTT, consume over REST as a consumer group, acknowledge one message and
 dead-letter another — with visible state at every step.
 
-**What you learn:** on queue-enabled topics TrailMQ persists accepted
-publishes for later processing. Delivery problems don't vanish — they end up
-in an inspectable dead-letter queue.
+**What you learn:** on queue-enabled topics TrailMQ writes accepted publishes
+to a queue for consumer groups, and a message a consumer rejects ends up in an
+inspectable dead-letter queue. A publisher's acknowledgement does not prove
+that the message reached the queue; see
+[What an acknowledgement does not tell you](#what-an-acknowledgement-does-not-tell-you)
+for what does, and for the counter to watch.
 
 Requires the governed topic from
 [scenario 3](03-governed-namespace.md) (`factory/line-1/temperature`,
@@ -108,8 +111,8 @@ curl -sS "http://localhost/api/v1/queue/deadletter" \
 }
 ```
 
-The failed message is not lost — it is flagged, attributed to its topic, and
-waiting for review. Final `stats`:
+The message you rejected is flagged, attributed to its topic, and waiting
+for review. Final `stats`:
 
 ```json
 { "acked": 1, "dlq": 1, "inflight": 0, "ready": 0 }
@@ -121,3 +124,43 @@ Queueing is **post-publish processing**: the broker accepts and routes the
 MQTT message first, then records it for queue consumers. Queue rejection does
 not retroactively undo broker delivery to live MQTT subscribers — it governs
 the store-and-process path.
+
+### What an acknowledgement does not tell you
+
+For a QoS 1 publish, the broker sends `PUBACK` **before** TrailMQ writes the
+message's queue row. The acknowledgement tells the publisher that the broker
+accepted the publish. It does not tell it that the message was stored.
+
+After the acknowledgement, a publish on a queue-enabled topic ends up in one of
+three places:
+
+| Outcome | When | What records it |
+| --- | --- | --- |
+| In the topic's queue | the normal case | `ready` in the topic's `stats` |
+| In the dead-letter queue | the queue row could not be written, a dead-letter fallback applies, and the dead-letter write succeeds — for example when the topic's queue is full | `deadLetterMessages` in `/api/v1/queue/status`, `/api/v1/queue/deadletter` |
+| Nowhere | the row could not be written and no dead-letter fallback applied or succeeded — for example when the topic cannot be resolved or the database insert fails | `rejectedPublishes` and a backend log line |
+
+Whether a dead-letter fallback applies depends on the topic's delivery class,
+so a full queue does not send every message to the dead-letter queue.
+
+**Watch `rejectedPublishes`.** It counts publishes the backend did not write to
+their topic's queue, including some that the dead-letter fallback then stored.
+A rising value means that publishers hold acknowledgements for messages your
+consumers may never see:
+
+```bash
+curl -sS "http://localhost/api/v1/queue/status" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | jq '{rejectedPublishes, deadLetterMessages, enqueueBufferDrops}'
+```
+
+The counter lives in the backend's memory. It starts at zero when the backend
+starts, and an administrator can reset it, so read it as a rate over time
+rather than as a total since installation. The 3.1.2 images do not count three
+of these exits (a topic that cannot be resolved, a full topic whose dead-letter
+write also fails, and a failed insert). From 3.2, each of them is counted and
+logged.
+
+Where losing an acknowledged message is not acceptable, the publisher needs an
+end-to-end check of its own, such as a consumer that confirms what it
+received. The acknowledgement cannot provide one.
