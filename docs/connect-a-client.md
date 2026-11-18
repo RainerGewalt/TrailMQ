@@ -73,6 +73,21 @@ two ways:
   `TOKEN` is an admin token, as in the
   [recipe walkthrough](../recipes/secure-mqtt-core/README.md#rest-api-authentication).
 
+Choose between them by session, not by convenience:
+
+- **A device that needs a persistent session must use a bound fixed ID.** A
+  server-assigned ID is admitted only on the CONNECT where the server assigns
+  it, so a session under that ID cannot be resumed. Under MQTT 5, reconnecting
+  with the assigned ID and `clean_start=false` is refused.
+- **An empty ID needs a clean session.** Under MQTT 3.1.1, an empty client ID
+  without `clean=true` is answered with CONNACK `0x80`, which is not a 3.1.1
+  return code. Under MQTT 5 the server assigns an ID on a clean start.
+- **Under MQTT 3.1.1, a refused client ID looks like a wrong password.** Both
+  return code `5`. Under MQTT 5, a refused client ID is `0x87` (not authorized)
+  and a refused password is `0x86`. Read the reason in the broker log
+  (`./trailmq logs backend`, `[AuthMon] DENY CONNECT … reason=client_id_undeclared`)
+  or under **Activity**, not in the client.
+
 Library defaults matter. Without `-i`, mosquitto 2.x sends an empty ID.
 mosquitto 1.6 does so only with `-V mqttv5` and otherwise invents a random
 `mosq-…` ID, which is refused. mosquitto rejects `-i ""` as an invalid ID.
