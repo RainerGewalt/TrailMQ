@@ -105,6 +105,12 @@ TRAILMQ_FRONTEND_IMAGE=rainergewalt/trailmq-frontend:3.1.2
 
 Restart with `./trailmq down` followed by `./trailmq start`.
 
+The root `.env` also carries one backend setting, which only 3.2 images read:
+
+| Variable | Values | Effect |
+| --- | --- | --- |
+| `MQTT_CLIENT_ID_UNDECLARED` | unset (default), `refuse`, `first_holder` | Decides a client ID no binding covers. Unset, `config.yaml` decides, and without a value there the 3.2 default `refuse` applies. A value set here overrides `config.yaml`. `first_holder` is a compatibility mode only; see [Upgrading to 3.2: client IDs](#upgrading-to-32-client-ids). |
+
 ## Evaluation identities
 
 | User | Role | Intended use |
@@ -166,7 +172,10 @@ claim that every internal or future read model is present in every image.
 | `GET` | `/ready` | backend is ready for work |
 | `GET` | `/api/v1/version` | running build/version identity |
 | `GET` | `/api/v1/metrics` | evaluation metrics |
-| `GET` | `/metrics` | Prometheus-style metrics |
+| `GET` | `/api/v1/metrics/prometheus` | Prometheus metrics for a scraper; needs no sign-in (see [Evaluation boundaries](#evaluation-boundaries)) |
+
+The backend also serves `/metrics` at its own root, but the recipe's nginx does
+not forward that path.
 
 ```bash
 curl -sS http://localhost/ready | jq
@@ -338,6 +347,15 @@ Do not treat a Preview counter alone as proof that a publish was delivered.
 - Generated CA material and credentials are local demo assets.
 - Browser-origin examples are intentionally convenient for local development
   and must be restricted for a real deployment.
+- `/api/v1/metrics/prometheus` answers without sign-in, because it is meant for
+  a metrics scraper. It describes the running system: memory, database and
+  audit pipeline state, and from 3.2 counts from the MQTT decision trace. The
+  recipe's nginx forwards every path under `/api/`, so the endpoint is
+  reachable on the published HTTP port (`TRAILMQ_HTTP_PORT`), which Docker
+  publishes on every host interface by default. Do not expose that port to
+  untrusted networks. If you need to, block the path in `nginx.conf` and let
+  the scraper reach the backend on `trailmq-net`. The 3.2 Web UI does not read
+  this endpoint.
 - Hash linking provides local tamper evidence, not external notarization or
   physically immutable storage.
 - TrailMQ can support traceability and regulated engineering work, but does not
@@ -369,6 +387,119 @@ and [license](../../LICENSE).
   refuses to start with it in `config.yaml`.
 
 The release notes of 3.1.2 list every change.
+
+## Upgrading to 3.2: client IDs
+
+3.2 has not been published yet. This section prepares the upgrade, and the
+changes it describes take effect only once 3.2 images run.
+
+From 3.2, the backend **refuses MQTT client IDs that are not bound to an
+account**. This setting is `mqtt_client_id_undeclared: refuse`, and it applies
+whenever neither `config.yaml` nor `MQTT_CLIENT_ID_UNDECLARED` sets a value. A
+connection is admitted only with a client ID bound to its account, or with an
+empty client ID, for which the server assigns one. A refused device sees an
+answer that looks like a wrong password (MQTT 3.1.1 return code 5, MQTT 5
+`0x87`), and the refusal is recorded with the reason `client_id_undeclared`.
+3.1.2 has no client-ID bindings, so every device that sets its own client ID
+is affected until that ID is bound.
+
+The 3.2 Web UI connects with a server-assigned client ID and is not affected.
+Backend and frontend ship as one release: switch both images together.
+
+### 1. Run the preflight before you switch images
+
+The preflight ships in the 3.2 backend image. Run it from that image against
+your existing `config.yaml` and `data/`, while your 3.1.2 stack keeps running
+or after `./trailmq down`. Replace `<version>` with the published 3.2 release:
+
+```bash
+cd recipes/secure-mqtt-core
+TRAILMQ_BACKEND_IMAGE=rainergewalt/trailmq-backend:<version> \
+  docker compose run --rm --no-deps -T backend \
+    preflight client-ids --config /app/config.yaml
+```
+
+Add `--json` after `/app/config.yaml` for machine-readable output. The command
+starts a one-off backend container that runs only the check. It opens the
+database read-only, writes no file, and never starts the broker.
+`docker compose run` exits with the preflight's own exit status:
+
+| Exit | Result line | Meaning |
+| --- | --- | --- |
+| `0` | `NO IMPACT` | No counted client ID observed within audit retention would be refused. |
+| `1` | `IMPACT` | At least one observed client ID would be refused. |
+| `2` | `INCOMPLETE`, or an error | A source could not be read, or the check could not run. Never read this as no impact. |
+
+How to read the report:
+
+- **It sees only what the audit records hold.** This recipe keeps them for
+  `audit_retention_days: 90`, and connection records are written on a
+  best-effort basis. A device that has not connected within that window, or
+  whose connection record is missing, is not in the report. A clean result
+  means that nothing was observed, not that nothing will be refused.
+- **Affected principals** lists, for each user or device, the client IDs that
+  would be refused and what to do about them.
+- **`mqttjs_` IDs** are listed but not counted. Most are sessions of the 3.1.2
+  Web UI, which 3.2 no longer creates: do not bind them. An mqtt.js device that
+  sets no client ID gets the same form of ID, so check each one.
+- **Exit `2` with a database that was not shut down cleanly.** If the last
+  backend stopped without a clean shutdown, the preflight refuses to open the
+  database. Start the stack once, stop it with `./trailmq down`, and run the
+  preflight again.
+
+### 2. Bind the client IDs it lists
+
+Bindings exist only from 3.2, so you create them after the switch:
+
+1. **If the preflight exited `1`**, start 3.2 in compatibility mode for the
+   transition. Set `MQTT_CLIENT_ID_UNDECLARED=first_holder` in the root
+   `.env`, or uncomment `mqtt_client_id_undeclared` in `config.yaml` and write
+   `"first_holder"`. The backend's startup log names the effective mode and
+   where it came from. If the preflight exited `0`, switch without it.
+2. Switch to the 3.2 images and start the stack.
+3. Bind each listed client ID to its account as an administrator, either on
+   the **Clients** page of the Web UI or through the API:
+
+   ```bash
+   curl -sS -X POST http://localhost/api/v1/clients/bindings \
+     -H "Authorization: Bearer ${TOKEN}" \
+     -H 'Content-Type: application/json' \
+     -d '{"pattern": "line-1-sensor", "match": "exact", "username": "testuser"}' | jq
+   ```
+
+   `match` is `exact` or `prefix`. Creating a binding disconnects any other
+   user's session that holds a matching client ID.
+   `GET /api/v1/clients/binding-proposals` lists candidates from observed
+   connections. A proposal never becomes a binding on its own.
+4. A client that cannot be bound must connect with an empty client ID. This
+   applies to configuration-file users without an account and to anonymous
+   clients. The recipe's own users are merged into the runtime database, so
+   they are accounts and can be bound.
+5. Check again on the running 3.2 backend until the preflight exits `0`:
+
+   ```bash
+   docker compose exec -T backend \
+     /app/mqtrail preflight client-ids --config /app/config.yaml
+   ```
+
+6. Remove `first_holder` and restart with `./trailmq down` and then
+   `./trailmq start`. `refuse` then applies.
+
+### When `first_holder` is acceptable
+
+`first_holder` is a compatibility mode, not an alternative default. It admits
+an undeclared client ID for whichever user holds it first. Another user can
+then take a device's ID first and lock the device out until an administrator
+binds the ID. Use it only for a bounded transition, while devices that cannot
+yet be bound or moved to server-assigned IDs are migrated. Then remove it.
+
+### Rolling back to 3.1.2
+
+Back up `data/` before you switch. To return to 3.1.2, use the 3.1.2 images and
+remove `mqtt_client_id_undeclared` from `config.yaml`: 3.1.2 does not know the
+key and refuses to start with it. 3.1.2 does not read
+`MQTT_CLIENT_ID_UNDECLARED`. If 3.1.2 does not start on the database that 3.2
+used, restore the backup. Anything recorded since the switch is then lost.
 
 ## Operate the local recipe
 
