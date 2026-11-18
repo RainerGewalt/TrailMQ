@@ -79,6 +79,30 @@ publish in action 2 would reach it if the subscription had been accepted.
 
 ## Run it on TrailMQ
 
+**On TrailMQ 3.2 and later, bind the client IDs first.** This page names its
+clients so that the records can be read by client ID. From 3.2, TrailMQ
+refuses a client ID that is not bound to an account
+([Client IDs from 3.2](connect-a-client.md#client-ids-from-32)), so bind the
+four fixed IDs once as `testadmin`. `proof-stranger` stays unbound: its user
+does not exist, and it is refused for that reason first. The 3.1.1 run below
+needed no such step, and 3.1.1 has no bindings.
+
+```bash
+TOKEN=$(curl -sS -X POST http://localhost/api/v1/auth \
+  -H 'Content-Type: application/json' \
+  -d "{\"username\":\"testadmin\",\"password\":\"$(cat recipes/secure-mqtt-core/secrets/testadmin.pwd)\"}" \
+  | jq -r '.token')
+for binding in proof-sensor:testuser proof-sensor-sub:testuser \
+  proof-ops-console:testadmin proof-observer:testadmin; do
+  curl -sS -o /dev/null -w "${binding%%:*} %{http_code}\n" \
+    -X POST http://localhost/api/v1/clients/bindings \
+    -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    -d "{\"pattern\": \"${binding%%:*}\", \"match\": \"exact\", \"username\": \"${binding##*:}\"}"
+done
+```
+
+Each line ends in `201`. Then run the five actions:
+
 ```bash
 CA=recipes/secure-mqtt-core/certs/ca_cert.pem
 BROKER=(-h localhost -p 8883 --cafile "$CA")
@@ -106,7 +130,10 @@ sensor subscription received:
   (nothing)
 ```
 
-Shell job-control lines are left out here and below. Now read why the three
+Shell job-control lines are left out here and below. A run against a 3.2
+build with the bindings above gave the same decisions and the same three
+records. Only the client's message for action 3 differed: `Error: The
+connection was lost.` with `exit=7`. Now read why the three
 refusals happened, from the record rather than from the client:
 
 ```bash

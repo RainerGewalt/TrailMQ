@@ -121,18 +121,20 @@ ${C_DIM}Subscribe to public/# and publish to public/demo/temperature — then tr
 restricted/ops/config and watch it refuse.${C_RESET}
 
 ${C_BOLD}mosquitto${C_RESET}  ${C_DIM}(copy-paste, two terminals)${C_RESET}
+  ${C_DIM}-V mqttv5 without -i lets the server assign the client ID; from 3.2 an
+  unbound client ID is refused (docs/connect-a-client.md, "Client IDs from 3.2").${C_RESET}
 
   ${C_DIM}# 1 — watch, as admin${C_RESET}
-  mosquitto_sub -h localhost -p ${mqtt_port} --cafile '${ca_file}' \\
+  mosquitto_sub -V mqttv5 -h localhost -p ${mqtt_port} --cafile '${ca_file}' \\
     -u testadmin -P '${admin_pw}' -t 'public/#' -v
 
   ${C_DIM}# 2 — allowed publish, as testuser${C_RESET}
-  mosquitto_pub -h localhost -p ${mqtt_port} --cafile '${ca_file}' \\
+  mosquitto_pub -V mqttv5 -h localhost -p ${mqtt_port} --cafile '${ca_file}' \\
     -u testuser -P '${user_pw}' \\
     -t 'public/demo/temperature' -m '{"value":21.4,"unit":"degC"}'
 
   ${C_DIM}# 3 — denied publish, as testuser (this one is supposed to fail)${C_RESET}
-  mosquitto_pub -h localhost -p ${mqtt_port} --cafile '${ca_file}' \\
+  mosquitto_pub -V mqttv5 -h localhost -p ${mqtt_port} --cafile '${ca_file}' \\
     -u testuser -P '${user_pw}' \\
     -t 'restricted/ops/config' -q 1 -m 'should-not-arrive'
 

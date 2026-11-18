@@ -47,6 +47,38 @@ up in the Web UI under **Activity**, filtered by **Outcome: Denied**.
 Use `testadmin` instead if you want to subscribe as well: `testuser` holds the
 publish-only `publisher` role.
 
+MQTT Explorer connects with a client ID of its own choosing. From 3.2, bind
+that client ID to the account before you connect; see
+[Client IDs from 3.2](#client-ids-from-32).
+
+## Client IDs from 3.2
+
+From 3.2, TrailMQ refuses an MQTT client ID that is not bound to an account
+(`mqtt_client_id_undeclared: refuse`, the default). A client gets in in one of
+two ways:
+
+- **Let the server assign the ID.** Connect with an empty client ID on a clean
+  session; the server assigns one. Decision records name the user and the
+  assigned ID. Every example below does this unless it says otherwise.
+- **Bind a fixed ID first.** A device that must keep its own ID needs a
+  binding. An administrator creates it on the **Clients** page of the Web UI
+  or through `POST /api/v1/clients/bindings`:
+
+  ```bash
+  curl -sS -X POST http://localhost/api/v1/clients/bindings \
+    -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+    -d '{"pattern": "line-1-sensor", "match": "exact", "username": "testuser"}'
+  ```
+
+  `TOKEN` is an admin token, as in the
+  [recipe walkthrough](../recipes/secure-mqtt-core/README.md#rest-api-authentication).
+
+Library defaults matter. Without `-i`, mosquitto 2.x sends an empty ID.
+mosquitto 1.6 does so only with `-V mqttv5` and otherwise invents a random
+`mosq-…` ID, which is refused. mosquitto rejects `-i ""` as an invalid ID.
+mqtt.js invents `mqttjs_…` unless you pass `clientId: ""`. Releases before 3.2
+have no bindings and do not refuse a client ID for being undeclared.
+
 ## The three things every client needs
 
 | # | What | Where it comes from (default recipe) |
@@ -101,12 +133,12 @@ ADMIN_PW=$(cat recipes/secure-mqtt-core/secrets/testadmin.pwd)
 USER_PW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 
 # Terminal 1 — subscribe as testadmin (admin may subscribe anywhere)
-mosquitto_sub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_sub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testadmin -P "$ADMIN_PW" \
   -t 'public/#' -T 'trailmq/#' -v
 
 # Terminal 2 — publish as testuser (role: publisher)
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
   -t 'public/demo/temperature' -q 1 \
   -m '{"value":21.4,"unit":"degC"}'
@@ -123,6 +155,9 @@ public/demo/temperature {"value":21.4,"unit":"degC"}
 ```bash
 pip install paho-mqtt
 ```
+
+This example keeps a fixed client ID. From 3.2, bind `line-1-sensor` to
+`testuser` first, as shown in [Client IDs from 3.2](#client-ids-from-32).
 
 ```python
 import paho.mqtt.client as mqtt
@@ -155,7 +190,10 @@ const client = mqtt.connect("mqtts://localhost:8883", {
   ca: fs.readFileSync("recipes/secure-mqtt-core/certs/ca_cert.pem"),
   username: "testuser",
   password: "<password from ./trailmq credentials>",
-  clientId: "line-1-sensor-node",
+  // Empty: the server assigns the client ID on this clean session. Without
+  // this line mqtt.js sends a random mqttjs_ ID, which 3.2 refuses.
+  clientId: "",
+  clean: true,
 });
 
 client.on("connect", () => {
@@ -181,6 +219,8 @@ you serve it from anywhere other than `http://localhost`.
   const client = mqtt.connect("ws://localhost/mqtt", {
     username: "testadmin",
     password: "<password from ./trailmq credentials>",
+    clientId: "", // server-assigned; a random mqttjs_ ID is refused from 3.2
+    clean: true,
   });
   client.on("connect", () => client.subscribe("public/#"));
   client.on("message", (topic, payload) =>

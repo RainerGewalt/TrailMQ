@@ -62,12 +62,12 @@ CA=recipes/secure-mqtt-core/certs/ca_cert.pem
 USER_PW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 
 # Terminal 1 — the new viewer watches
-mosquitto_sub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_sub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testviewer -P "$(cat recipes/secure-mqtt-core/secrets/testviewer.pwd)" \
-  -i viewer-panel -t 'public/#' -T 'trailmq/#' -v
+  -t 'public/#' -T 'trailmq/#' -v
 
 # Terminal 2 — publish something as testuser
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
   -t 'public/demo/temperature' -q 1 -m '{"for":"viewer"}'
 ```
@@ -81,14 +81,22 @@ public/demo/temperature {"for":"viewer"}
 ## 5. …and publishing is denied
 
 ```bash
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testviewer -P "$(cat recipes/secure-mqtt-core/secrets/testviewer.pwd)" \
   -t 'public/demo/temperature' -q 1 -m 'x'
 ```
 
 ```text
-Error: A network protocol error occurred when communicating with the broker.
+Warning: Publish 1 failed: Not authorized.
 ```
+
+Under MQTT 5 the broker refuses the publish in its acknowledgement (reason
+`0x87`) and the connection stays open. Under MQTT 3.1.1 it closes the
+connection instead, and mosquitto exits with an error about the connection.
+
+The commands name no client ID, so the server assigns one. From 3.2, a fixed
+client ID such as `viewer-panel` is refused until it is bound to the account;
+see [Client IDs from 3.2](../connect-a-client.md#client-ids-from-32).
 
 ```bash
 ./trailmq logs backend | grep ACLMon

@@ -19,21 +19,26 @@ USER_PW=$(cat recipes/secure-mqtt-core/secrets/testuser.pwd)
 ## 2. Start the "dashboard" (terminal 1)
 
 ```bash
-mosquitto_sub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_sub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testadmin -P "$ADMIN_PW" \
-  -i dashboard-1 \
   -t 'public/#' -T 'trailmq/#' -v
 ```
 
 `-T 'trailmq/#'` hides the policy handshake TrailMQ sends to every new client
 (see [Connect a client](../connect-a-client.md)). The terminal now waits.
 
+Neither command names a client ID. With `-V mqttv5` and no `-i`, mosquitto
+sends an empty client ID and the server assigns one. From 3.2, TrailMQ refuses
+a client ID that is not bound to an account, so a fixed ID such as
+`dashboard-1` would need a binding first. The Activity record still names the
+user and the assigned client ID. See
+[Client IDs from 3.2](../connect-a-client.md#client-ids-from-32).
+
 ## 3. Publish as the "sensor" (terminal 2)
 
 ```bash
-mosquitto_pub -h localhost -p 8883 --cafile "$CA" \
+mosquitto_pub -V mqttv5 -h localhost -p 8883 --cafile "$CA" \
   -u testuser -P "$USER_PW" \
-  -i line-1-sensor \
   -t 'public/demo/temperature' -q 1 \
   -m '{"value":21.4,"unit":"degC"}'
 ```
