@@ -197,6 +197,43 @@ Then check logs:
 ./trailmq logs
 ```
 
+## Several devices behind one router are refused as if their password were wrong
+
+This is a commissioning hazard. On the MQTT TCP/TLS port, TrailMQ bounds
+refused CONNECTs per **(client address, account)**: 20 refusals within 15
+minutes, counted from the first one. Devices behind one NAT router, cellular
+gateway or Docker Desktop port publishing reach the broker from one address.
+If they also sign in with one shared account, they share one budget.
+
+- One misconfigured device can use the budget up on its own, for example with
+  a wrong password or an account that does not exist yet (`user_not_found`).
+- For the rest of the window, every CONNECT for that account from that address
+  is refused **before its credentials are checked**. That includes correctly
+  configured sibling devices, and each is told that its credentials are bad
+  (MQTT 5 `0x86`, MQTT 3.1.1 return code `5`).
+- There is no reset. The budget clears only when the 15-minute window ends or
+  the backend restarts.
+- Client-ID refusals (`client_id_undeclared`) and capacity refusals do not
+  count against the budget. Other accounts behind the same address are not
+  affected by it. Separately, an address that collects 100 credential
+  refusals across all accounts gets no further password check, for 15
+  minutes, for any account that has not signed in from it.
+
+Watch for the cut-off. It is logged once per window:
+
+```bash
+./trailmq logs backend | grep connect_rate_limited
+# [AuthMon] DENY 203.0.113.7:51234 user="line-sensors" reason=connect_rate_limited: …
+```
+
+To avoid it:
+
+- Give each device, or each class of device, its own account, so that one
+  device's mistake cannot lock out the others.
+- Create the accounts, and from 3.2 the client-ID bindings, **before** the
+  devices are rolled out, so that no device is refused while it is being
+  commissioned.
+
 ## Reset local runtime data
 
 Keep certs and secrets, but remove data, logs, and audit archive:
